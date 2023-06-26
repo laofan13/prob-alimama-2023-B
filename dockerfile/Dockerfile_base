@@ -1,0 +1,26 @@
+FROM ubuntu
+
+# 安装https源依赖的ca-certificates
+RUN apt update && apt install -y ca-certificates
+
+# 替换源为阿里云的源
+RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
+  sed -i 's#http://[a-z.]\+#https://mirrors.aliyun.com#g' /etc/apt/sources.list 
+
+# 安装必要的开发环境
+RUN apt update && apt install -y --no-install-recommends \
+  libssl-dev \
+  curl \
+  git \
+  gcc \
+  g++ \
+  gdb \
+  vim \
+  cmake \
+  build-essential \
+  autoconf \
+  libtool \
+  pkg-config \
+  libboost-all-dev \
+  ; \
+  rm -rf /var/lib/apt/lists/*

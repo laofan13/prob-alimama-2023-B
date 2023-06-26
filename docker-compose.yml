@@ -1,0 +1,121 @@
+
+version: '2'
+
+services:
+  etcd:
+    container_name: etcd
+    image: docker.io/bitnami/etcd:3.5
+    networks:
+      - alimama
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+
+  node1:
+    container_name: node-1
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    cpuset: "1-16"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G 
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - alimama
+    volumes:
+      - "./node-1:/work"
+      - "./data:/data:ro"
+    environment:
+      - NODE_ID=1
+      - NODE_NUM=3
+      - MEMORY=1G
+      - CPU=1C
+
+    depends_on:
+      - etcd
+      - testbench
+    working_dir: /work
+    command: ["./run.sh"]
+
+  node2:
+    container_name: node-2
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G 
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - alimama
+    volumes:
+      - "./node-2:/work"
+      - "./data:/data:ro"
+    environment:
+      - NODE_ID=2
+      - NODE_NUM=3
+      - MEMORY=1G
+      - CPU=1C
+    depends_on:
+      - etcd
+      - testbench
+    working_dir: /work/
+    command: ["./run.sh"]
+
+  node3:
+    container_name: node-3
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G 
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+    networks:
+      - alimama
+    volumes:
+      - "./node-3:/work"
+      - "./data:/data:ro"
+    environment:
+      - NODE_ID=3
+      - NODE_NUM=3
+      - MEMORY=1G
+      - CPU=1C
+    depends_on:
+      - etcd
+      - testbench
+    working_dir: /work/
+    command: ["./run.sh"]
+
+  testbench:
+    container_name: node-testbench
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G 
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    networks:
+      - alimama
+    depends_on:
+      - etcd
+    volumes:
+      - "./testbench:/work"
+      - "./data:/data:ro"
+    working_dir: /work
+    command: ["bash", "./run.sh"]
+networks:
+  alimama:
+    name: alimama_2023_B_alimama
+    internal: true
+    external: false
+

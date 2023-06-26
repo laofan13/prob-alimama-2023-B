@@ -1,0 +1,42 @@
+FROM public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-base as build
+
+WORKDIR /work
+
+COPY grpc /work/grpc
+RUN mkdir -p /usr/local/share/pkgconfig/
+RUN cd grpc; \
+  mkdir -p cmake/build && \
+  cd cmake/build && \
+  cmake -DgRPC_INSTALL=ON  -DgRPC_BUILD_TESTS=OFF \
+  -DCMAKE_BUILD_TYPE=Release ../../ && \
+  make -j 60 && \
+  make install && \
+  cd -; \
+  cp third_party/re2/re2.pc /usr/local/share/pkgconfig/ && \
+  sed -i 's#@includedir@#/usr/local/include#g' /usr/local/share/pkgconfig/re2.pc && \
+  sed -i 's#@libdir@#/usr/local/lib#g' /usr/local/share/pkgconfig/re2.pc;
+
+COPY cpprestsdk /work/cpprestsdk
+RUN cd cpprestsdk; \
+  sed -i '91i#pragma GCC diagnostic push\n#pragma GCC diagnostic ignored "-Wformat-truncation"' \
+  Release/src/http/common/http_helpers.cpp && \
+  sed -i '94i#pragma GCC diagnostic pop' Release/src/http/common/http_helpers.cpp && \
+  mkdir -p build && \
+  cd build && \
+  cmake -DCPPREST_EXCLUDE_WEBSOCKETS=ON -DCMAKE_BUILD_TYPE=Release .. && \
+  make -j60 && \
+  make install
+
+COPY etcd-cpp-apiv3 /work/etcd-cpp-apiv3
+RUN cd etcd-cpp-apiv3; \
+  sed -i 's/-Wno-string-compare/-Wno-string-compare -Wno-stringop-overflow/g' \
+  CMakeLists.txt && \
+  mkdir build && cd build && \
+  cmake -DETCD_CMAKE_CXX_STANDARD=17 .. && \
+  make -j60 && make install
+
+
+FROM public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-base
+
+COPY --from=build /usr/ /usr/
+RUN ldconfig
