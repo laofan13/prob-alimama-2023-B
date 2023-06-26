@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package alimama.proto;
+
+message Request {
+  // 指定返回的广告需要匹配的keyword。
+  repeated uint64 keywords = 1;
+
+  // 根据用户和关键词生成的上下文向量。向量维度为2。
+  repeated float context_vector = 2;
+
+  // 指定返回的广告需要匹配的时段，取值范围为[0,23]
+  uint64 hour = 3;
+
+  // 返回的广告单元的数量，若满足后续条件的广告单元数量不足`topn`个，则返回所有满足条件的广告单元
+  // 若满足后续条件的广告单元数量超过`topn`个，则返回按分数降序排列的前`topn`个广告单元。
+  uint64 topn = 4;
+}
+
+message Response {
+  // 广告单元id
+  repeated uint64 adgroup_ids = 1;
+
+  // 广告单元对应的出价(单位为分)
+  repeated uint64 prices = 2;
+}
+
+service SearchService {
+  rpc Search(Request) returns (Response) {}
+}
