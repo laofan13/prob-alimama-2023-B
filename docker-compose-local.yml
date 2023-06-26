@@ -1,0 +1,17 @@
+
+version: '2'
+
+services:
+  etcd:
+    container_name: etcd
+    image: docker.io/bitnami/etcd:3.5
+    networks:
+      - alimama
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+networks:
+  alimama:
+    name: alimama_2023_B_alimama
+    internal: true
+    external: false
+
