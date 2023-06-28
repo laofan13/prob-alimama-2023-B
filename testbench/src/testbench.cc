@@ -110,7 +110,6 @@ void TestAll(Statistic& stat) {
 
   if (!TestResulCalcStat(services, stat)) return;
   if (!TestMaxQpsCalcStat(services, stat)) return;
-  // if (!TestCapacityCalcStat(services, stat)) return;
   if (!TestResponseTimeCalcStat(services, stat)) return;
   if (!TestServiceStabilityCalcStat(services, stat.max_qps, stat)) return;
 }

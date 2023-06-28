@@ -20,7 +20,6 @@ private:
 
     void reloadfile() {
         std::shared_ptr<CSVDef> reader_ = std::make_shared<CSVDef>(this->filename_);
-        // reader_->read_header(csv::ignore_missing_column, "keywords", "context_vector", "hour", "topn", "adgroup_ids", "prices");
         this->reader_.swap(reader_);
     }
 

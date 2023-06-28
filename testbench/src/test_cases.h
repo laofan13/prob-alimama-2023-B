@@ -81,35 +81,6 @@ bool TestMaxQpsCalcStat(std::vector<std::string> services, Statistic& stat) {
     return true;
 }
 
-bool TestCapacityCalcStat(std::vector<std::string> services, Statistic& stat) {
-    auto& cfg = g_config.capacity_cfg;
-    auto reader = TestCaseReaderPreload(cfg.test_case_csv, cfg.csv_reader_capacity);
-    reader.Start();
-
-    BOOST_LOG_TRIVIAL(info) << "TestCapacityScore ";
-    auto summary = TestCapacityScore(services, reader, cfg);
-    reader.Stop();
-    stat.M = g_config.M;
-    stat.capacity_score = 0;
-    stat.timeout_percent = summary.timeout_request_count * 1.0 / summary.completed_requests;
-    if (summary.interupted || IsLess(summary.success_request_percent, cfg.success_percent_th)) {
-      stat.max_qps = 0;
-      BOOST_LOG_TRIVIAL(info) << "capacity score " << stat.capacity_score;
-      return false;
-    }
-    auto& custom_summary = summary.custom_summary;
-    double avg_score = custom_summary.total_score / custom_summary.total_num;
-    if (IsLess(avg_score, cfg.sample_score_th)) {
-      return false;
-    }
-
-    stat.max_qps = custom_summary.qps;
-    stat.capacity_score = (100 * 2 * stat.max_qps) / (3 * g_config.M);
-    if (stat.capacity_score > 100) stat.capacity_score = 100;
-    BOOST_LOG_TRIVIAL(info) << "capacity score " << stat.capacity_score;
-    return true;
-}
-
 bool TestResponseTimeCalcStat(std::vector<std::string> services, Statistic& stat) {
     auto& cfg = g_config.response_time_cfg;
     auto reader = TestCaseReaderPreload(cfg.test_case_csv, cfg.csv_reader_capacity);

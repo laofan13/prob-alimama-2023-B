@@ -1,4 +1,4 @@
-IMAGE = public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+IMAGE = public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
 HOST_SYSTEM = $(shell uname | cut -f 1 -d_)
 SYSTEM ?= $(HOST_SYSTEM)
 CXX = g++
