@@ -32,18 +32,6 @@ struct TestMaxQpsConfig {
   int32_t sample_score_th;
 }; 
 
-struct TestCapacityConfig {
-  std::string test_case_csv;
-  int32_t csv_reader_capacity;
-  int32_t thread_num;
-  int32_t timeout_ms;
-  int32_t sample_num;
-  int32_t test_duration_sec;
-  double  success_percent_th;
-  double  sample_percent_th;
-  int32_t sample_score_th;
-};
-
 struct TestResponseTimeConfig {
   std::string test_case_csv;
   int32_t csv_reader_capacity;
@@ -76,7 +64,6 @@ struct TestConfig {
   int32_t M;
   TestResultConfig result_cfg;
   TestMaxQpsConfig max_qps_cfg;
-  TestCapacityConfig capacity_cfg;
   TestResponseTimeConfig response_time_cfg;
   TestStabilityConfig stability_cfg;
 };
@@ -89,18 +76,6 @@ void FromJson(const json& j, TestResultConfig& p) {
     p.test_case_csv = j.at("test_case_csv").get<std::string>();
     p.csv_reader_capacity = j.at("csv_reader_capacity").get<int32_t>();
     p.final_score_th = j.at("final_score_th").get<int32_t>();
-}
-
-void FromJson(const json& j, TestCapacityConfig& p) {
-    p.test_case_csv = j.at("test_case_csv").get<std::string>();
-    p.csv_reader_capacity = j.at("csv_reader_capacity").get<int32_t>();
-    p.thread_num = j.at("thread_num").get<int32_t>();
-    p.timeout_ms = j.at("timeout_ms").get<int32_t>();
-    p.sample_num = j.at("sample_num").get<int32_t>();
-    p.test_duration_sec = j.at("test_duration_sec").get<int32_t>();
-    p.sample_percent_th = j.at("sample_percent_th").get<double>();
-    p.success_percent_th = j.at("success_percent_th").get<double>();
-    p.sample_score_th = j.at("sample_score_th").get<int32_t>();
 }
 
 void FromJson(const json& j, TestMaxQpsConfig& p) {
@@ -183,13 +158,6 @@ bool ReadConfigFromFile(const std::string& filename, TestConfig& config) {
         FromJson(j["test_response_time"], config.response_time_cfg);
     } else {
         std::cerr << "Missing or invalid 'test_response_time' in JSON.\n";
-        return false;
-    }
-
-    if(j.contains("test_capacity") && j["test_capacity"].is_object()) {
-        FromJson(j["test_capacity"], config.capacity_cfg);
-    } else {
-        std::cerr << "Missing or invalid 'test_capacity' in JSON.\n";
         return false;
     }
 

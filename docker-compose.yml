@@ -12,8 +12,7 @@ services:
 
   node1:
     container_name: node-1
-    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
-    cpuset: "1-16"
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
     deploy:
       resources:
         limits:
@@ -41,7 +40,7 @@ services:
 
   node2:
     container_name: node-2
-    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
     deploy:
       resources:
         limits:
@@ -68,7 +67,7 @@ services:
 
   node3:
     container_name: node-3
-    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
     deploy:
       resources:
         limits:
@@ -95,7 +94,7 @@ services:
 
   testbench:
     container_name: node-testbench
-    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v0
+    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
     deploy:
       resources:
         limits:

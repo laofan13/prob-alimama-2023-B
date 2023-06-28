@@ -126,15 +126,6 @@ SearchServiceGprcBenchmark::SummaryData TestMaxQps(std::vector<std::string> serv
   return summary1;
 }
 
-
-SearchServiceGprcBenchmark::SummaryData TestCapacityScore(std::vector<std::string> services, TestCaseReader& reader, const TestCapacityConfig& cfg) {
-  auto clis = SearchServiceGprcSyncClient::CreateClientsByNum(services, cfg.thread_num);
-  if (clis.size() == 0) return {};
-  auto comparator = std::make_shared<SearchServiceComparatorSample>(cfg.sample_percent_th, cfg.sample_score_th);
-  auto bench = std::make_shared<SearchServiceGprcBenchmark>(clis, comparator, cfg.timeout_ms, 0);
-  return RunBenchmark(bench, reader, cfg.sample_num, cfg.test_duration_sec);
-}
-
 SearchServiceGprcBenchmark::SummaryData TestResponseTime(std::vector<std::string> services, TestCaseReader& reader, const TestResponseTimeConfig& cfg) {
   auto clis = SearchServiceGprcClient::CreateClients(services, cfg.qps_limit);
   if (clis.size() == 0) return {};
