@@ -1,13 +1,13 @@
 {
     "loading_time_sec_timeout": 600,
     "accuracy_th": 1.0,
-    "M": 3000,
+    "M": 20000,
     "test_result": {
         "test_case_csv": "/data/test_case_dev.csv",
         "csv_reader_capacity": 1000,
         "thread_num": 6,
         "timeout_ms": 500,
-        "sample_num": 500,
+        "sample_num": 10000,
         "qps_limit": 0,
         "final_score_th": 80
     },
@@ -15,7 +15,7 @@
         "test_case_csv": "/data/test_case_dev.csv",
         "csv_reader_capacity": 1000,
         "thread_num": 0,
-        "qps_upper": 25000,
+        "qps_upper": 30000,
         "qps_baseline": 1000,
         "qps_step0": 1000,
         "qps_step1": 100,
@@ -29,9 +29,9 @@
         "test_case_csv": "/data/test_case_dev.csv",
         "csv_reader_capacity": 1000,
         "thread_num": 0,
-        "qps_limit": 1000,
+        "qps_limit": 3000,
         "timeout_ms": 100,
-        "test_duration_sec": 10,
+        "test_duration_sec": 0,
         "success_percent_th": 0.999,
         "sample_percent_th": 0.01,
         "sample_score_th": 80

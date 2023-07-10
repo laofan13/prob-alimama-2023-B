@@ -29,9 +29,9 @@ struct CustomSummary{
   double qps;
   int32_t total_num;
   double total_score;
-  int32_t ad_correct_num; // 集合和顺序都正确
-  int32_t ad_partial_correct_num; // 集合正确，顺序不正确
-  int32_t price_correct_num; // 价格正确
+  int32_t correct_ads_num; // 集合正确的数量
+  int32_t ordered_correct_ads_num; // 集合正确且顺序正确的数量
+  int32_t accurate_prices_ads_num; // 集合正确、顺序正确、价格正确的数量
 };
 
 using StubsVector=std::vector<std::unique_ptr<SearchService::Stub>>;

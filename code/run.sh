@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./alimama/demo_alimama_search_service
+./alimama/alimama_search_service

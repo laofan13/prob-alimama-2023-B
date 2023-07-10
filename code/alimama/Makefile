@@ -24,9 +24,9 @@ PROTOS_PATH = ./
 
 vpath %.proto $(PROTOS_PATH)
 
-all: demo_alimama_search_service
+all: alimama_search_service
 
-demo_alimama_search_service: alimama.pb.o alimama.grpc.pb.o demo_alimama_search_service.o
+alimama_search_service: alimama.pb.o alimama.grpc.pb.o alimama_search_service.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
 .PRECIOUS: %.grpc.pb.cc
@@ -38,7 +38,7 @@ demo_alimama_search_service: alimama.pb.o alimama.grpc.pb.o demo_alimama_search_
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h demo_alimama_search_service
+	rm -f *.o *.pb.cc *.pb.h alimama_search_service
 
 
 # The following is to test your system and ensure a smoother experience.

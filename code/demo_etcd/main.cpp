@@ -4,7 +4,7 @@
 #include <iostream>
 
 std::string str_url = "http://etcd:2379";
-std::string str_key = "a";
+std::string str_key = "/services/searchservice/";
 
 int main() {
     etcd::Client etcd(str_url);
