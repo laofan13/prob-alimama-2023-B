@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <random>
+#include <limits>
 
 #include <cmath>
 #include <etcd/Client.hpp>
@@ -46,12 +47,17 @@ void DumpSummary(const SearchServiceGprcBenchmark::SummaryData& summary) {
 
 SearchServiceGprcBenchmark::SummaryData RunBenchmark(
     std::shared_ptr<SearchServiceGprcBenchmark> bench,
-    TestCaseReader& reader, int32_t req_times, int32_t timeout_sec) {
+    TestCaseReader& reader, int32_t req_times, int32_t timeout_sec, bool enable_repeat=true) {
   Timer tm{};
+  if (req_times == 0) req_times = std::numeric_limits<int>::max();
   for(size_t i=0; i<req_times; i++) {
     TestCasePair pair{};
     if (!reader.Pop(pair)) {
       BOOST_LOG_TRIVIAL(error)  << "pop data failed";
+      break;
+    }
+    if (!enable_repeat && pair.repeat) {
+      BOOST_LOG_TRIVIAL(info)  << "all test cases have been read";
       break;
     }
     if (!bench->Request(i, pair.req, pair.response)) {
@@ -116,6 +122,10 @@ SearchServiceGprcBenchmark::SummaryData TestMaxQps(std::vector<std::string> serv
   auto summary0 = doBatchBench(cfg.qps_step0);
   DumpSummary(summary0);
 
+  if (int32_t(qps_limit) <= 0) {
+    qps_limit = cfg.qps_step1;
+  }
+
   std::this_thread::sleep_for(std::chrono::seconds(10));
 
   auto summary1 = doBatchBench(cfg.qps_step1);
@@ -134,7 +144,7 @@ SearchServiceGprcBenchmark::SummaryData TestResponseTime(std::vector<std::string
   auto bench = std::make_shared<SearchServiceGprcBenchmark>(clis, comparator, cfg.timeout_ms, cfg.qps_limit);
   
   int32_t req_times = cfg.qps_limit * cfg.test_duration_sec;
-  return RunBenchmark(bench, reader, req_times, cfg.test_duration_sec);
+  return RunBenchmark(bench, reader, req_times, cfg.test_duration_sec, false);
 }
 
 SearchServiceGprcBenchmark::SummaryData TestServiceStabilityScore(std::vector<std::string> services, TestCaseReader& reader, const TestStabilityConfig& cfg) {

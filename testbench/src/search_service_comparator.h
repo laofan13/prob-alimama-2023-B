@@ -72,10 +72,11 @@ public:
             auto resp_iter_start = resp->adgroup_ids().begin();
             auto resp_iter_end = resp->adgroup_ids().begin() + topNCheckNum;
             if (std::equal(resp_iter_start, resp_iter_end, ref_iter_start, ref_iter_end)) { // 集合+顺序完全一致时
-                result.ad_correct_num ++;
+                result.correct_ads_num ++;
+                result.ordered_correct_ads_num ++;
                 score += 80;
             } else if (std::is_permutation(resp_iter_start, resp_iter_end, ref_iter_start, ref_iter_end)) { // 集合完全一致时，顺序不一致
-                result.ad_partial_correct_num ++;
+                result.correct_ads_num ++;
                 score += 50;
                 break;
             } else { // 集合不一致时
@@ -87,7 +88,7 @@ public:
             auto resp_price_start = resp->prices().begin();
             auto resp_price_end = resp->prices().begin() + topNCheckNum;
             if (std::equal(ref_price_start, ref_price_end, resp_price_start, resp_price_end)) {
-                result.price_correct_num ++;
+                result.accurate_prices_ads_num ++;
                 score += 20;
             }
         } while(0);
@@ -133,11 +134,12 @@ public:
         auto resp_iter_start = resp->adgroup_ids().begin();
         auto resp_iter_end = resp->adgroup_ids().begin() + topNCheckNum;
         if (std::equal(resp_iter_start, resp_iter_end, ref_iter_start, ref_iter_end)) { // 集合+顺序完全一致时
-            result.ad_correct_num ++;
+            result.correct_ads_num ++;
+            result.ordered_correct_ads_num ++;
             result.total_score += 50;
             result.total_score += 30;
         } else if (std::is_permutation(resp_iter_start, resp_iter_end, ref_iter_start, ref_iter_end)) { // 集合完全一致时，顺序不一致
-            result.ad_partial_correct_num ++;
+            result.correct_ads_num ++;
             result.total_score += 50;
             return true;
         } else { // 集合不一致时
@@ -149,7 +151,7 @@ public:
         auto resp_price_start = resp->prices().begin();
         auto resp_price_end = resp->prices().begin() + topNCheckNum;
         if (std::equal(ref_price_start, ref_price_end, resp_price_start, resp_price_end)) {
-            result.price_correct_num ++;
+            result.accurate_prices_ads_num ++;
             result.total_score += 20;
         }
         return true;

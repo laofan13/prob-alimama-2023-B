@@ -43,8 +43,20 @@ bool TestResulCalcStat(std::vector<std::string> services, Statistic& stat) {
     double avg_score = user_summary.total_score / user_summary.total_num;
     stat.result_score = avg_score;
     stat.timeout_percent = summary.timeout_request_count * 1.0 / summary.completed_requests;
-    BOOST_LOG_TRIVIAL(info) << "result score:  " << avg_score;
-    if (IsLess(avg_score, cfg.final_score_th) || IsLess(summary.success_request_percent, 1.0)) {
+    BOOST_LOG_TRIVIAL(info) << "The number of correct ads is: " << user_summary.correct_ads_num;
+    BOOST_LOG_TRIVIAL(info) << "The number of ordered correct ads is: " << user_summary.ordered_correct_ads_num;
+    BOOST_LOG_TRIVIAL(info) << "The number of accurate prices ads is: " << user_summary.accurate_prices_ads_num;
+    BOOST_LOG_TRIVIAL(info) << "current average score:  " << avg_score;
+    double kSuccessPercentTh {0.999f};
+    if (IsLess(summary.success_request_percent, kSuccessPercentTh)) {
+      stat.result_score = 0;
+      BOOST_LOG_TRIVIAL(info) << "exit testbench: success_request_percent < " << kSuccessPercentTh;
+      BOOST_LOG_TRIVIAL(info) << "result score:  " << stat.result_score;
+      return false;
+    }
+    BOOST_LOG_TRIVIAL(info) << "result score:  " << stat.result_score;
+    if (IsLess(avg_score, cfg.final_score_th)) {
+      BOOST_LOG_TRIVIAL(info) << "exit testbench: final_score_th < " << cfg.final_score_th;
       return false;
     }
     return true;
