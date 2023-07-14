@@ -9,6 +9,7 @@ services:
       - alimama
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
+      
 networks:
   alimama:
     name: alimama_2023_B_alimama

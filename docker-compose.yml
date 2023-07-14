@@ -34,7 +34,6 @@ services:
 
     depends_on:
       - etcd
-      - testbench
     working_dir: /work
     command: ["./run.sh"]
 
@@ -61,7 +60,6 @@ services:
       - CPU=1C
     depends_on:
       - etcd
-      - testbench
     working_dir: /work/
     command: ["./run.sh"]
 
@@ -88,30 +86,29 @@ services:
       - CPU=1C
     depends_on:
       - etcd
-      - testbench
     working_dir: /work/
     command: ["./run.sh"]
 
-  testbench:
-    container_name: node-testbench
-    image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G 
-        reservations:
-          cpus: '1.0'
-          memory: 2G
-    networks:
-      - alimama
-    depends_on:
-      - etcd
-    volumes:
-      - "./testbench:/work"
-      - "./data:/data:ro"
-    working_dir: /work
-    command: ["bash", "./run.sh"]
+  # testbench:
+  #   container_name: node-testbench
+  #   image: public-images-registry.cn-hangzhou.cr.aliyuncs.com/public/alimama-2023:B-v1
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 2G 
+  #       reservations:
+  #         cpus: '1.0'
+  #         memory: 2G
+  #   networks:
+  #     - alimama
+  #   depends_on:
+  #     - etcd
+  #   volumes:
+  #     - "./testbench:/work"
+  #     - "./data:/data:ro"
+  #   working_dir: /work
+  #   command: ["bash", "./run.sh"]
 networks:
   alimama:
     name: alimama_2023_B_alimama
