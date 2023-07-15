@@ -53,25 +53,16 @@ public:
     }
 
     int init() {
-         // 记录开始时间
+        // 加载广告数据
         auto start = std::chrono::high_resolution_clock::now();
         if(load_csv_data() != 0) {
             std::cout << "fiald to load data " << filename << std::endl;
             return -1;
         }
-        //   // 记录结束时间
         auto end = std::chrono::high_resolution_clock::now();
-        
-        // 计算读取文件所花费的时间（以毫秒为单位）
-        auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        // 输出读取的文件内容和所花费的时间
-        std::cout << "读取文件所花费的时间：" << duration1 << " 毫秒" << std::endl;
+        auto duration1 = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        std::cout << "加载文件所花费的时间：" << duration1 << " 毫秒" << std::endl;
         std::cout << "文件行数：" << data_num << std::endl;
-
-        // // 打印数据
-        // for(int i = 0; i < data_num; i++) {
-        //     std::cout << raw_datas[i] << std::endl;
-        // }
 
         // 排序
         start = std::chrono::high_resolution_clock::now();
@@ -79,13 +70,23 @@ public:
             return l.keyword < r.keyword;
         });
         end = std::chrono::high_resolution_clock::now();
-        auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "排序数据所花费的时间：" << duration2 << " 毫秒" << std::endl;
-
-        // // 打印数据
-        // for(int i = 0; i < data_num; i++) {
-        //     std::cout << raw_datas[i] << std::endl;
-        // }
+        auto duration2 = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        std::cout << "对数据进行排序所花费的时间：" << duration2 << " 毫秒" << std::endl;
+            
+        // 构建索引
+        start = std::chrono::high_resolution_clock::now();
+        indexs.reserve(key_word_num);
+        int64_t s = 0;
+        for(int64_t i = 1; i < data_num; i++) {
+            if(raw_datas[i].keyword != raw_datas[i-1].keyword) {
+                indexs[raw_datas[s].keyword] = {s, i-1};
+                s = i;
+            }
+        }
+        indexs[raw_datas[s].keyword] = {s, data_num - 1};
+        end = std::chrono::high_resolution_clock::now();
+        auto duration3 = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        std::cout << "构建索引所花费的时间：" << duration3 << " 毫秒" << std::endl;
         
         // 将服务地址注册到etcd中
         // std::string str = "|" + std::to_string(data_num) + "|" + std::to_string(duration1) + "|" + std::to_string(duration2);
@@ -124,39 +125,8 @@ private:
         csv_file.close();
         return 0;
     }
-private:
-    using MatchResult = std::pair<int64_t, int64_t>;
-    std::unordered_map<uint64_t, MatchResult> search_caches;
 
 public:
-    std::pair<int64_t, int64_t> SearchByKeyWord(uint64_t keyword) {
-        // cache
-        if(search_caches.find(keyword) != search_caches.end()) {
-            return search_caches[keyword];
-        }
-        auto findFirstLess = [this] (uint64_t keyword) -> int64_t{
-            int64_t low = 0;
-            int64_t high = data_num;
-            while(low < high) {
-                int64_t mid = ((high - low) >> 1) + low;
-                if(raw_datas[mid].keyword < keyword) {
-                    low = mid + 1;
-                }else if(raw_datas[mid].keyword >= keyword) {
-                    high = mid;
-                }
-            }
-            return low;
-        };
-        MatchResult result;
-        result.first = findFirstLess(keyword);
-        if(raw_datas[result.first].keyword != keyword)
-            return {-1 , -1};
-        result.second = findFirstLess(keyword + 1) - 1;
-        // add cache
-        search_caches[keyword] = result;
-        return result;
-    }
-
     Status Search(ServerContext *context, const Request *request,
                     Response *response) override {
         uint64_t hour = request->hour();
@@ -173,14 +143,14 @@ public:
         for(int i = 0; i < request->keywords_size(); i++) {
             // search
             auto keyword = request->keywords(i);
-            auto searchResult = SearchByKeyWord(keyword);
-            if(searchResult.first == -1)
+            if(indexs.find(keyword) == indexs.end()) 
                 continue;
+            auto matchResult = indexs[keyword];
 
             // std::cout << searchResult.first << "," << searchResult.second << std::endl;
 
             // 计算预估点击率 和分数
-            for(int64_t i = searchResult.first; i <= searchResult.second; i++ ) {
+            for(int64_t i = matchResult.first; i <= matchResult.second; i++ ) {
                 RawData& data = raw_datas[i];
                 if(!(data.timings_mask & (1 << hour))) 
                     continue;
@@ -255,33 +225,10 @@ private:
     etcd::Client etcd_;
 
     RawData* raw_datas;
-    uint64_t data_num = 0;
+    int64_t data_num = 0;
+    using IndexResult = std::pair<int64_t, int64_t>;
+    std::unordered_map<uint64_t, IndexResult> indexs;
 };
-
-void testService() {
-    Options options = loadENV();
-    std::string server_address = getLocalIP() + ":50051";
-    std::cout << options << std::endl;
-
-    SearchServiceImpl service(options, server_address);
-    if(service.init() != 0) {
-        std::cout << "SearchService faild to init ...." << std::endl;
-        return ;
-    }
-
-    auto result = service.SearchByKeyWord(2916200016);
-    std::cout << result.first << "," << result.second << std::endl;
-    result = service.SearchByKeyWord(4803367238);
-    std::cout << result.first << "," << result.second << std::endl;
-    result = service.SearchByKeyWord(12210106372);
-    std::cout << result.first << "," << result.second << std::endl;
-    result = service.SearchByKeyWord(1);
-    std::cout << result.first << "," << result.second << std::endl;
-    result = service.SearchByKeyWord(2916200017);
-    std::cout << result.first << "," << result.second << std::endl;
-    result = service.SearchByKeyWord(12210106373);
-    std::cout << result.first << "," << result.second << std::endl;
-}
 
 void RunServer() {
     Options options = loadENV();
@@ -295,6 +242,7 @@ void RunServer() {
         std::cout << "SearchService faild to init ...." << std::endl;
         return ;
     }
+    options.node_num = 2;
 
     ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());

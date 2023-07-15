@@ -109,7 +109,7 @@ bool parserRawData(Options option, std::string & line, RawData &data) {
     while(i < n && line[i] == '\t')
         i++; 
 
-    if(data.keyword % option.node_num != option.node_id)
+    if(data.keyword % 2 != option.node_id)
         return false;
 
     // adgroup_id
