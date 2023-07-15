@@ -12,8 +12,8 @@
 #include <string>
 #include <chrono>
 
-#include "utils.h"
 #include "config.h"
+#include "utils.h"
 
 #include <etcd/Client.hpp>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
@@ -48,8 +48,8 @@ public:
 
     ~SearchServiceImpl() {
         etcd_.rm(modelservice_key);
-        if(datas_)
-            delete [] datas_;
+        if(raw_datas)
+            delete [] raw_datas;
     }
 
     int init() {
@@ -63,35 +63,33 @@ public:
         auto end = std::chrono::high_resolution_clock::now();
         
         // 计算读取文件所花费的时间（以毫秒为单位）
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         // 输出读取的文件内容和所花费的时间
-        std::cout << "读取文件所花费的时间：" << duration << " 毫秒" << std::endl;
+        std::cout << "读取文件所花费的时间：" << duration1 << " 毫秒" << std::endl;
         std::cout << "文件行数：" << data_num << std::endl;
 
-        // 排序
-        // start = std::chrono::high_resolution_clock::now();
-        std::sort(datas_, datas_ + data_num, [] (const RawData & l, const RawData & r) {
-            return l.adgroup_id < r.adgroup_id;
-        });
-        // end = std::chrono::high_resolution_clock::now();
-        // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        // std::cout << "排序数据所花费的时间：" << duration << " 毫秒" << std::endl;
-
-        // for(auto & pair: hash_tables) {
-        //     std::cout << "keyword:" << pair.first << std::endl;
-        //     for(auto & data: pair.second) {
-        //         std::cout  << "adgroup_id: " << data.adgroup_id << " | "
-        //                 << "price: " << data.price << " | "
-        //                 << "timings_mask: " << std::hex << data.timings_mask << std::dec << " | "
-        //                 << "vector: ["<< data.vec1 << ", "<< data.vec2 << "]"
-        //                 << std::endl;
-        //     }
-        //     std::cout <<std::endl;
+        // // 打印数据
+        // for(int i = 0; i < data_num; i++) {
+        //     std::cout << raw_datas[i] << std::endl;
         // }
 
+        // 排序
+        start = std::chrono::high_resolution_clock::now();
+        std::sort(raw_datas, raw_datas + data_num, [] (const RawData & l, const RawData & r) {
+            return l.keyword < r.keyword;
+        });
+        end = std::chrono::high_resolution_clock::now();
+        auto duration2 = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        std::cout << "排序数据所花费的时间：" << duration2 << " 毫秒" << std::endl;
+
+        // // 打印数据
+        // for(int i = 0; i < data_num; i++) {
+        //     std::cout << raw_datas[i] << std::endl;
+        // }
+        
         // 将服务地址注册到etcd中
-        // std::string val = std::to_string(data_num) + "|" + std::to_string(datas.capacity());
-        auto response = etcd_.set(modelservice_key, server_address_ ).get();
+        // std::string str = "|" + std::to_string(data_num) + "|" + std::to_string(duration1) + "|" + std::to_string(duration2);
+        auto response = etcd_.set(modelservice_key, server_address_).get();
         if (response.is_ok()) {
             std::cout << "Service registration successful.\n";
         } else {
@@ -104,7 +102,7 @@ public:
 
 private:
     int load_csv_data() {// alloc memory
-        datas_ = new RawData[total_data_num];
+        raw_datas = new RawData[total_data_num];
 
         std::ifstream csv_file(filename);
         char buf[65536];
@@ -115,101 +113,48 @@ private:
             return -1;
         }
 
-        int64_t key_word = 0;
-        std::string line, cell;
+        std::string line;
         while (std::getline(csv_file, line)) {
-            int n = line.size();
-            int i = 0;
-            key_word = 0;
-            RawData & rawData = datas_[data_num];
-            // keywrod
-            while(i < n && line[i] != '\t') {
-                key_word = key_word * 10 + (line[i] - '0');
-                i++;
-            }
-
-            // load controll
-            if(key_word % options_.node_num != options_.node_id) 
+            RawData & rawData = raw_datas[data_num];
+            if(!parserRawData(options_, line, rawData))
                 continue;
-
-            while(i < n && line[i] == '\t')
-                i++; 
-            // adgroup_id
-            rawData.adgroup_id = 0;
-            while(i < n && line[i] != '\t') {
-                rawData.adgroup_id = rawData.adgroup_id * 10 + (line[i] - '0');
-                i++;
-            }
-            while(i < n && line[i] == '\t')
-                i++;
-
-            // price
-            rawData.price = 0;
-            while(i < n && line[i] != '\t') {
-                rawData.price = rawData.price * 10 + (line[i] - '0');
-                i++;
-            }
-            while(i < n && line[i] == '\t')
-                i++;
-
-            // status
-            if(line[i] == '0') {
-                continue;
-            }
-            i++;
-            while(i < n && line[i] == '\t')
-                i++;
-
-            // timings
-            rawData.timings_mask = 0;
-            int k = 0;
-            while(i < n) {
-                if(line[i] == '0') {
-                    k++;
-                }else if(line[i] == '1') {
-                    rawData.timings_mask |= 1 << k;
-                    k++;
-                }
-                i++;
-                if(k >= 24) 
-                    break;
-            }
-            while(i < n && line[i] == '\t')
-                i++;
-            // vector1
-            rawData.vec1 = 0.0f;
-            float decimal = 0.1f;
-            while (i < n && line[i] != '.') {
-                rawData.vec1 = rawData.vec1 * 10.0f + (line[i] - '0');
-                ++i;
-            }
-            ++i;
-            while (i < n && line[i] != ',') {
-                rawData.vec1 = rawData.vec1 + (line[i] - '0') * decimal;
-                decimal *= 0.1f;
-                ++i;
-            }
-            i++;
-            // vector1
-            rawData.vec2 = 0.0f;
-            decimal = 0.1f;
-            while (i < n && line[i] != '.') {
-                rawData.vec2 = rawData.vec2 * 10.0f + (line[i] - '0');
-                ++i;
-            }
-            ++i;
-            while (i < n && line[i] != '\t') {
-                rawData.vec2 = rawData.vec2 + (line[i] - '0') * decimal;
-                decimal *= 0.1f;
-                ++i;
-            }
-
             data_num++;
         }
-
         // 关闭文件
         csv_file.close();
         return 0;
+    }
+private:
+    using MatchResult = std::pair<int64_t, int64_t>;
+    std::unordered_map<uint64_t, MatchResult> search_caches;
+
+public:
+    std::pair<int64_t, int64_t> SearchByKeyWord(uint64_t keyword) {
+        // cache
+        if(search_caches.find(keyword) != search_caches.end()) {
+            return search_caches[keyword];
+        }
+        auto findFirstLess = [this] (uint64_t keyword) -> int64_t{
+            int64_t low = 0;
+            int64_t high = data_num;
+            while(low < high) {
+                int64_t mid = ((high - low) >> 1) + low;
+                if(raw_datas[mid].keyword < keyword) {
+                    low = mid + 1;
+                }else if(raw_datas[mid].keyword >= keyword) {
+                    high = mid;
+                }
+            }
+            return low;
+        };
+        MatchResult result;
+        result.first = findFirstLess(keyword);
+        if(raw_datas[result.first].keyword != keyword)
+            return {-1 , -1};
+        result.second = findFirstLess(keyword + 1) - 1;
+        // add cache
+        search_caches[keyword] = result;
+        return result;
     }
 
     Status Search(ServerContext *context, const Request *request,
@@ -219,63 +164,87 @@ private:
         float vec2 = request->context_vector(1);
         // std::cout << "vec1: " << vec1 << "  vec2: " << vec2 << "\n"; 
         float dist = sqrt(vec1 * vec1 + vec2 * vec2);
-        uint64_t topn = request->topn();
+        int topn = request->topn();
 
         // 1. search match result
-        std::vector<RawData> searchDatas;
-        std::vector<int> indexs;
-        int j = 0;
-        // for(int i = 0; i < request->keywords_size(); i++) {
-        //     auto keyword = request->keywords(i);
-        //     if(hash_tables.find(keyword) != hash_tables.end()) {
-        //         for(auto & data: hash_tables[keyword]) {
-        //             if(data.timings_mask & (1 << hour)) {
-        //                 searchDatas.push_back(data);
-        //                 indexs.push_back(j++);
-        //             }
-        //         }
-        //     }
-        // }
-
-        // 2. 分数计算
         // 预估点击率 = 商品向量 和 用户_关键词向量 的余弦距离
         // 排序分数 = 预估点击率 x 出价（分数越高，排序越靠前）
-        std::vector<std::pair<float, float>> scores(searchDatas.size());
-        for(int i = 0; i < searchDatas.size(); i++) {
-            auto & data = searchDatas[i];
-            float up = data.vec1 * vec1 + data.vec2 * vec2;
-            float down = sqrt(data.vec1 * data.vec1 + data.vec2 * data.vec2) * dist;
-            scores[i].first = up / down + 0.000001f;
-            scores[i].second = scores[i].first * data.price;
+        std::unordered_map<uint64_t, SearchResult> search_map;
+        for(int i = 0; i < request->keywords_size(); i++) {
+            // search
+            auto keyword = request->keywords(i);
+            auto searchResult = SearchByKeyWord(keyword);
+            if(searchResult.first == -1)
+                continue;
 
-            // std::cout << "vec1: " << data.vec1 
-            //     << "  vec2: " << data.vec2 
-            //     << " price: " <<data.price << "\n"; 
-            // std::cout << "预估点击率: " << scores[i].first << " | "
-            //         << "排序分数: " << scores[i].second << "\n";
+            // std::cout << searchResult.first << "," << searchResult.second << std::endl;
+
+            // 计算预估点击率 和分数
+            for(int64_t i = searchResult.first; i <= searchResult.second; i++ ) {
+                RawData& data = raw_datas[i];
+                if(!(data.timings_mask & (1 << hour))) 
+                    continue;
+                // std::cout << data << "\n";
+
+                float up = data.vec1 * vec1 + data.vec2 * vec2;
+                float down = sqrt(data.vec1 * data.vec1 + data.vec2 * data.vec2) * dist;
+                float ert = up / down + 0.000001f;
+                float score = ert * data.price;
+                // std::cout << "ert: " << ert << "-" << "score: " << score << "\n";
+
+                if(search_map.find(data.adgroup_id) != search_map.end()) {
+                    auto &result = search_map[data.adgroup_id];
+                    if(score > result.score) {
+                        result.price = data.price;
+                        result.score = score;
+                        result.ert = ert;
+                    }else if(score == result.score) {
+                        if(data.price < result.price) {
+                            result.price = data.price;
+                            result.ert = ert;
+                        }
+                    }
+                }else{
+                    SearchResult result(data.adgroup_id, data.price);
+                    result.ert = ert;
+                    result.score = score;
+                    search_map[data.adgroup_id] = result;
+                }
+            }
+        }
+
+        if(search_map.empty())
+            return Status::OK;
+
+        std::vector<SearchResult> results;
+        for(auto & it: search_map) {
+            results.push_back(it.second);
         }
 
         // 3. top_k
-        std::sort(indexs.begin(), indexs.end(), [&scores] (int &l, int r) {
-            return scores[l].second > scores[r].second;
+        std::sort(results.begin(), results.end(), [] (SearchResult &lhs, SearchResult rhs) {
+            if(lhs.score > rhs.score) {
+                return true;
+            }else if(lhs.score == rhs.score) {
+                return lhs.price < rhs.price;
+            }
+            return false;
         });
 
         // 4. prices
         // 计费价格（计费价格 = 第 i+1 名的排序分数 / 第 i 名的预估点击率（i表示排序名次，例如i=1代表排名第1的广告））
-        std::vector<uint64_t> prices(searchDatas.size());
-        for(int i = 0; i < indexs.size(); i++) {
-            auto score = scores[indexs[i]];
-            int pre_idx = i == indexs.size() - 1 ? i : i + 1;
-            prices[i] = scores[indexs[pre_idx]].second / score.first;
-        }
+        int n = results.size() <= topn ? results.size() : topn;
+        for(int i = 0; i < n - 1; i++)
+            results[i].bill_price = std::round(results[i+1].score / results[i].ert) ;
+        results[n-1].bill_price = results.size() <= topn ? 
+            results[n-1].price : std::round(results[n].score / results[n-1].ert);
 
         // 5. fill result
-        int n = indexs.size() < topn ? indexs.size() : topn;
+        n = results.size() <= topn ? results.size() : topn;
         for(int i = 0; i < n; i++) {
-            int idx = indexs[i];
-            response->add_adgroup_ids(searchDatas[idx].adgroup_id);
-            response->add_prices(prices[i]);
-            std::cout << searchDatas[idx].adgroup_id << "  " << prices[i] << "\n";
+            response->add_adgroup_ids(results[i].adgroup_id);
+            response->add_prices(results[i].bill_price);
+            // std::cout << results[i].adgroup_id << "  " << results[i].bill_price << "\n";
         }
         return Status::OK;
     }
@@ -285,17 +254,34 @@ private:
     std::string server_address_;
     etcd::Client etcd_;
 
-    //byte size = 20B
-    struct RawData {
-        uint64_t adgroup_id;
-        uint16_t price;
-        int32_t timings_mask;
-        float vec1, vec2;
-    };
-
-    RawData* datas_;
+    RawData* raw_datas;
     uint64_t data_num = 0;
 };
+
+void testService() {
+    Options options = loadENV();
+    std::string server_address = getLocalIP() + ":50051";
+    std::cout << options << std::endl;
+
+    SearchServiceImpl service(options, server_address);
+    if(service.init() != 0) {
+        std::cout << "SearchService faild to init ...." << std::endl;
+        return ;
+    }
+
+    auto result = service.SearchByKeyWord(2916200016);
+    std::cout << result.first << "," << result.second << std::endl;
+    result = service.SearchByKeyWord(4803367238);
+    std::cout << result.first << "," << result.second << std::endl;
+    result = service.SearchByKeyWord(12210106372);
+    std::cout << result.first << "," << result.second << std::endl;
+    result = service.SearchByKeyWord(1);
+    std::cout << result.first << "," << result.second << std::endl;
+    result = service.SearchByKeyWord(2916200017);
+    std::cout << result.first << "," << result.second << std::endl;
+    result = service.SearchByKeyWord(12210106373);
+    std::cout << result.first << "," << result.second << std::endl;
+}
 
 void RunServer() {
     Options options = loadENV();
@@ -322,6 +308,6 @@ void RunServer() {
 
 int main(int argc, char **argv) {
   RunServer();
-
+//   testService();
   return 0;
 }
