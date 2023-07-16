@@ -194,7 +194,7 @@ public:
         std::vector<SearchResult> search_results;
         std::unordered_map<uint64_t, int> deduplication_maps;
         for(int i = 0; i < request->keywords_size(); i++) {
-            // search
+            // Recall
             auto keyword = request->keywords(i);
             // std::cout << "keyword=" << keyword << std::endl;
             if(keyword % options_.node_num != options_.node_id)
@@ -207,9 +207,10 @@ public:
             // 计算预估点击率 和分数
             for(int64_t i = matchResult.first; i <= matchResult.second; i++ ) {
                 RawData& data = raw_datas[i];
-                // 投放时间过滤
+                // Filtering
                 if(!(data.timings_mask & (1 << hour))) 
                     continue;
+
                 // 预估点击率 = 商品向量 和 用户_关键词向量 的余弦距离
                 // 排序分数 = 预估点击率 x 出价（分数越高，排序越靠前）
                 float up = data.item_vec1 * context_vec1 + data.item_vec2 * context_vec2;
@@ -273,7 +274,7 @@ public:
     }
 
     std::vector<SearchResult> mergeResult(std::vector<SearchResult> & result1, std::vector<SearchResult> & result2) {
-        auto cmp = [] (const SearchResult &lhs, const SearchResult rhs) {
+        auto sort_cmp = [] (const SearchResult &lhs, const SearchResult rhs) {
             if(lhs.score > rhs.score) {
                 return true;
             }else if(lhs.score == rhs.score) {
@@ -287,24 +288,43 @@ public:
             return false;
         };
         std::vector<SearchResult> search_results;
-        int i = 0, j = 0;
-        while(i < result1.size() || j < result2.size()) {
-            if(i < result1.size() && j < result2.size()) {
-                if(cmp(result1[i], result2[j])) {
-                    search_results.push_back(result1[i]);
-                    i++;
-                }else{
-                    search_results.push_back(result2[j]);
-                    j++;
+        std::unordered_map<uint64_t, int> deduplication_maps;
+
+        // 去重，以确保同一个广告不会被多次展示给用户。
+        // 排序过程遇到adgroup_id重复，则优先选择排序分数高者，如若同时排序分数相等则取出价低者；
+        auto insertResult = [&search_results, &deduplication_maps](SearchResult &data) {
+            if(deduplication_maps.find(data.adgroup_id) != deduplication_maps.end()) {
+                auto &result = search_results[deduplication_maps[data.adgroup_id]];
+                if(data.score > result.score || (data.score == result.score && data.price < result.price)) {
+                    result.price = data.price;
+                    result.score = data.score;
+                    result.ctr = data.ctr;
                 }
-            }else if(i < result1.size()) {
-                search_results.push_back(result1[i]);
+            }else{
+                search_results.emplace_back(data.adgroup_id, data.price, data.ctr, data.score);
+                deduplication_maps[data.adgroup_id] = search_results.size() - 1;
+            }
+        };
+
+        int i = 0, j = 0;
+        while(i < result1.size() && j < result2.size()) {
+            if(sort_cmp(result1[i], result2[j])) {
+                insertResult(result1[i]);
                 i++;
-            }else if(j < result2.size()){
-                search_results.push_back(result2[j]);
+            }else{
+                insertResult(result2[j]);
                 j++;
             }
         }
+        while(i < result1.size()) {
+            insertResult(result1[i]);
+            i++;
+        }
+        while(j < result2.size()) {
+            insertResult(result2[j]);
+            j++;
+        }
+
         return std::move(search_results);
     }
 
