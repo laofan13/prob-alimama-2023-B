@@ -1,5 +1,10 @@
 #include <ostream>
 #include <string>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -83,7 +88,7 @@ struct RawData {
     uint64_t adgroup_id;
     uint16_t price;
     int32_t timings_mask;
-    float vec1, vec2;
+    float item_vec1, item_vec2;
     // uint64_t campaign_id;
     // uint64_t item_id;
 };
@@ -93,7 +98,7 @@ std::ostream& operator<<(std::ostream& os, RawData& data) {
         << "adgroup_id: " << data.adgroup_id << " | "
         << "price: " << data.price << " | "
         << "timings_mask: " << std::hex << data.timings_mask << std::dec << " | "
-        << "vector: ["<< data.vec1 << ", "<< data.vec2 << "]";
+        << "vector: ["<< data.item_vec1 << ", "<< data.item_vec2 << "]";
     return os;
 }
 
@@ -109,7 +114,7 @@ bool parserRawData(Options option, std::string & line, RawData &data) {
     while(i < n && line[i] == '\t')
         i++; 
 
-    if(data.keyword % 2 != option.node_id)
+    if(data.keyword % option.node_num != option.node_id)
         return false;
 
     // adgroup_id
@@ -155,52 +160,119 @@ bool parserRawData(Options option, std::string & line, RawData &data) {
         i++;
 
     // vector1
-    data.vec1 = 0.0f;
+    data.item_vec1 = 0.0f;
     float decimal = 0.1f;
     while (i < n && line[i] != '.') {
-        data.vec1 = data.vec1 * 10.0f + (line[i] - '0');
+        data.item_vec1 = data.item_vec1 * 10.0f + (line[i] - '0');
         ++i;
     }
     ++i;
     while (i < n && line[i] != ',') {
-        data.vec1 = data.vec1 + (line[i] - '0') * decimal;
+        data.item_vec1 = data.item_vec1 + (line[i] - '0') * decimal;
         decimal *= 0.1f;
         ++i;
     }
     i++;
 
     // vector2
-    data.vec2 = 0.0f;
+    data.item_vec2 = 0.0f;
     decimal = 0.1f;
     while (i < n && line[i] != '.') {
-        data.vec2 = data.vec2 * 10.0f + (line[i] - '0');
+        data.item_vec2 = data.item_vec2 * 10.0f + (line[i] - '0');
         ++i;
     }
     ++i;
     while (i < n && line[i] != '\t') {
-        data.vec2 = data.vec2 + (line[i] - '0') * decimal;
+        data.item_vec2 = data.item_vec2 + (line[i] - '0') * decimal;
         decimal *= 0.1f;
         ++i;
     }
     return true;
 };
 
+#pragma pack(8)
 struct SearchResult {
     uint64_t adgroup_id;
     uint16_t price;
-    float ert;
+    float ctr;
     float score;
-    uint64_t bill_price;
+    uint64_t bill_price = 0;
 
     SearchResult() {}
     SearchResult(uint64_t id, uint16_t p): adgroup_id(id), price(p) {}
+    SearchResult(uint64_t id, uint16_t p, float e, float s): 
+        adgroup_id(id), price(p), ctr(e), score(s)  {}
 };
 
 std::ostream& operator<<(std::ostream& os, SearchResult& result) {
     os << "adgroup_id: " << result.adgroup_id << " | "
         << "price: " << result.price << " | "
-        << "ert: " << result.ert << " | "
+        << "ctr: " << result.ctr << " | "
         << "score: " << result.score << " | "
         << "bill_price: " << result.bill_price;
     return os;
 }
+
+
+struct SearchTask{
+    std::vector<uint64_t> keywords;
+    float context_vector1;
+    float context_vector2;
+    uint64_t hour;
+    uint64_t topn;
+
+    SearchTask(float v1, float v2, uint64_t h, uint64_t n):
+        context_vector1(v1),
+        context_vector2(v2),
+        hour(h),
+        topn(n)
+    {
+
+    }
+};
+
+struct AyncSearchResult {
+    bool finish;
+    bool faild;
+    std::mutex mu;
+    std::condition_variable cv;
+
+    std::vector<SearchResult> results;
+
+    AyncSearchResult():
+         finish(true),
+         faild(true),
+         results(0)
+    {
+        
+    }
+
+    void wait() {
+        while(1) {
+            if( finish || faild)
+                break;
+            std::unique_lock<std::mutex> lock(mu);
+            cv.wait(lock, [this] { 
+                return finish || faild; 
+            });
+            if( finish || faild)
+                break;
+        }
+    };
+
+    void complete() {
+        {
+            std::unique_lock<std::mutex> lock(mu);
+            finish = true;
+        }
+        cv.notify_one();
+    }
+
+    void cancel() {
+        {
+            std::unique_lock<std::mutex> lock(mu);
+            faild = true;
+        }
+        cv.notify_one();
+    }
+};
