@@ -4,6 +4,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <list>
 #include <condition_variable>
 
 #include <arpa/inet.h>

@@ -305,7 +305,7 @@ public:
                 j++;
             }
         }
-        return search_results;
+        return std::move(search_results);
     }
 
     Status Search(ServerContext *context, const Request *request,
