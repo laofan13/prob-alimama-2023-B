@@ -192,7 +192,6 @@ public:
 
         // 1. search match result
         std::vector<SearchResult> search_results;
-        std::unordered_map<uint64_t, int> deduplication_maps;
         for(int i = 0; i < request->keywords_size(); i++) {
             // Recall
             auto keyword = request->keywords(i);
@@ -203,7 +202,6 @@ public:
                 continue;
             auto matchResult = indexs[keyword];
             
-
             // 计算预估点击率 和分数
             for(int64_t i = matchResult.first; i <= matchResult.second; i++ ) {
                 RawData& data = raw_datas[i];
@@ -217,43 +215,15 @@ public:
                 float down = sqrt(data.item_vec1 * data.item_vec1 + data.item_vec2 * data.item_vec2) * context_dist;
                 float ctr = up / down + 0.000001f;
                 float score = ctr * data.price;
-
-                // 去重，以确保同一个广告不会被多次展示给用户。
-                // 排序过程遇到adgroup_id重复，则优先选择排序分数高者，如若同时排序分数相等则取出价低者；
-                if(deduplication_maps.find(data.adgroup_id) != deduplication_maps.end()) {
-                    auto &result = search_results[deduplication_maps[data.adgroup_id]];
-                    if(score > result.score || (score == result.score && data.price < result.price)) {
-                        result.price = data.price;
-                        result.score = score;
-                        result.ctr = ctr;
-                    }
-                }else{
-                    search_results.emplace_back(data.adgroup_id, data.price, ctr, score);
-                    deduplication_maps[data.adgroup_id] = search_results.size() - 1;
-                }   
+                search_results.emplace_back(data.adgroup_id, data.price, ctr, score);
             }
         }
         if(search_results.empty())
             return {};
 
         // 2.分数越高，排序越靠前
-        std::sort(search_results.begin(), search_results.end(), [] (SearchResult &lhs, SearchResult rhs) {
-            if(lhs.score > rhs.score) {
-                return true;
-            }else if(lhs.score == rhs.score) {
-                if(lhs.price < rhs.price) {
-                    return true;
-                }else if(lhs.price == rhs.price) {
-                    return lhs.adgroup_id > rhs.adgroup_id;
-                }
-                return false;
-            }
-            return false;
-        });
-        // 3. 保留topN
-        if(search_results.size() > topn) 
-            search_results.resize(topn+1);
-
+        std::sort(search_results.begin(), search_results.end(), order_cmp);
+    
         return std::move(search_results);
     }
 
@@ -274,22 +244,8 @@ public:
     }
 
     std::vector<SearchResult> mergeResult(std::vector<SearchResult> & result1, std::vector<SearchResult> & result2) {
-        auto sort_cmp = [] (const SearchResult &lhs, const SearchResult rhs) {
-            if(lhs.score > rhs.score) {
-                return true;
-            }else if(lhs.score == rhs.score) {
-                if(lhs.price < rhs.price) {
-                    return true;
-                }else if(lhs.price == rhs.price) {
-                    return lhs.adgroup_id > rhs.adgroup_id;
-                }
-                return false;
-            }
-            return false;
-        };
         std::vector<SearchResult> search_results;
         std::unordered_map<uint64_t, int> deduplication_maps;
-
         // 去重，以确保同一个广告不会被多次展示给用户。
         // 排序过程遇到adgroup_id重复，则优先选择排序分数高者，如若同时排序分数相等则取出价低者；
         auto insertResult = [&search_results, &deduplication_maps](SearchResult &data) {
@@ -308,7 +264,7 @@ public:
 
         int i = 0, j = 0;
         while(i < result1.size() && j < result2.size()) {
-            if(sort_cmp(result1[i], result2[j])) {
+            if(order_cmp(result1[i], result2[j])) {
                 insertResult(result1[i]);
                 i++;
             }else{
@@ -347,14 +303,20 @@ public:
 
         // 4. prices
         // 计费价格（计费价格 = 第 i+1 名的排序分数 / 第 i 名的预估点击率（i表示排序名次，例如i=1代表排名第1的广告））
-        int n = final_results.size() <= topn ? final_results.size() : topn;
-        for(int i = 0; i < n - 1; i++)
-            final_results[i].bill_price = std::round(final_results[i+1].score / final_results[i].ctr) ;
-        final_results[n-1].bill_price = final_results.size() <= topn ? 
-            final_results[n-1].price : std::round(final_results[n].score / final_results[n-1].ctr);
+        int size = final_results.size();
+        if(size <= topn) {
+            for(int i = 0; i < size - 1; i++)
+                final_results[i].bill_price = std::round(final_results[i+1].score / final_results[i].ctr);
+            final_results[size - 1].bill_price = final_results[size - 1].price;
+        }else {
+            for(int i = 0; i < topn; i++)
+                final_results[i].bill_price = std::round(final_results[i+1].score / final_results[i].ctr);
+        }
 
         // 5. fill result
-        n = final_results.size() <= topn ? final_results.size() : topn;
+        int n = final_results.size() <= topn ? final_results.size() : topn;
+        response->mutable_adgroup_ids()->Reserve(n);
+        response->mutable_prices()->Reserve(n);
         for(int i = 0; i < n; i++) {
             response->add_adgroup_ids(final_results[i].adgroup_id);
             response->add_prices(final_results[i].bill_price);
@@ -384,7 +346,6 @@ void RunServer() {
         std::cout << "node3 exit ..." << "\n";
         return;
     }
-        
     options.node_num = 2;
     std::string server_address = getLocalIP() + ":50051";
     std::cout << options << std::endl;
@@ -394,7 +355,6 @@ void RunServer() {
         std::cout << "SearchService faild to init ...." << std::endl;
         return ;
     }
-    options.node_num = 2;
 
     ServerBuilder builder;
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());

@@ -215,6 +215,20 @@ std::ostream& operator<<(std::ostream& os, SearchResult& result) {
     return os;
 }
 
+bool order_cmp(const SearchResult &lhs, const SearchResult rhs) {
+    if(lhs.score > rhs.score) {
+        return true;
+    }else if(lhs.score == rhs.score) {
+        if(lhs.price < rhs.price) {
+            return true;
+        }else if(lhs.price == rhs.price) {
+            return lhs.adgroup_id > rhs.adgroup_id;
+        }
+        return false;
+    }
+    return false;
+}
+
 // struct SearchTask{
 //     std::vector<uint64_t> keywords;
 //     float context_vector1;
