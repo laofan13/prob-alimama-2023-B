@@ -12,11 +12,6 @@
 #include <string>
 #include <chrono>
 
-
-#include "alimama.pb.h"
-#include "config.h"
-#include "utils.h"
-
 #include <etcd/Client.hpp>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
@@ -33,68 +28,17 @@ using grpc::ServerBuilder;
 using grpc::ServerCompletionQueue;
 using grpc::ServerContext;
 using grpc::Status;
-
 using grpc::Channel;
-using grpc::ClientContext;
-using grpc::ClientAsyncResponseReader;
-using grpc::CompletionQueue;
 
 using alimama::proto::Request;
 using alimama::proto::Response;
 using alimama::proto::SearchResponse;
 using alimama::proto::SearchService;
 
-class SearchServiceClient {
-public:
-    SearchServiceClient(Options option, std::shared_ptr<Channel> channel_)
-        :options(option),
-         stub_(SearchService::NewStub(channel_))
-    {
-
-    }
-
-    void init() {
-
-    }
-
-    std::vector<SearchResult> Search(const Request *req) {
-         // std::cout << "node_" << node_id_ << "push num: " << tasks.num << std::endl;
-        Request request;
-        for (int i = 0; i < req->keywords_size(); ++i) {
-            if(req->keywords(i) % options.node_num == 1){
-                request.add_keywords(req->keywords(i));
-            }
-        }
-        if(request.keywords_size() <= 0) {
-            return {};
-        }
-        request.add_context_vector(req->context_vector(0));
-        request.add_context_vector(req->context_vector(1));
-        request.set_hour(req->hour());
-        request.set_topn(req->topn());
-
-        SearchResponse response;
-        ClientContext context;
-
-        Status status = stub_->InernalSearch(&context, request, &response);
-
-        if (!status.ok()) {
-            std::cout << "RPC failed" << std::endl;
-            return {};
-        }
-        std::vector<SearchResult> result;
-        for (int i = 0; i < response.adgroup_ids_size(); i++) {
-            // std::cout << "Adgroup ID: " << response.adgroup_ids(i) << std::endl;
-            result.emplace_back(response.adgroup_ids(i), response.prices(i), response.ctrs(i), response.scores(i));
-        }
-        return std::move(result);
-    }   
-
-private:
-    Options options;
-    std::unique_ptr<SearchService::Stub> stub_;
-};
-
+#include "alimama.pb.h"
+#include "config.h"
+#include "utils.h"
+#include "search_service_client.h"
 
 class SearchServiceImpl final : public SearchService::Service {
 public:
@@ -120,18 +64,43 @@ public:
             return -1;
         }
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration1 = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-        std::cout << "加载文件所花费的时间：" << duration1 << " 毫秒" << "\n";
+        auto load_duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        std::cout << "加载文件所花费的时间：" << load_duration << " 毫秒" << "\n";
         std::cout << "文件行数：" << data_num << "\n";
 
         // 排序
-        sortData();
+        start = std::chrono::high_resolution_clock::now();
+        std::sort(raw_datas, raw_datas + data_num, [] (const RawData & l, const RawData & r) {
+            return l.keyword < r.keyword;
+        });
+        end = std::chrono::high_resolution_clock::now();
+        auto sort_duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        std::cout << "对数据进行排序所花费的时间：" << sort_duration << " 毫秒" << "\n";
+
+        // for(int64_t i = 0; i < data_num; i++)
+        //     std::cout << raw_datas[i] << "\n";
             
         // 构建索引
-        buildIndex();
+        start = std::chrono::high_resolution_clock::now();
+        indexs.reserve(key_word_num);
+        int64_t s = 0;
+        for(int64_t i = 1; i < data_num; i++) {
+            if(raw_datas[i].keyword != raw_datas[i-1].keyword) {
+                indexs[raw_datas[s].keyword] = {s, i-1};
+                s = i;
+            }
+        }
+        indexs[raw_datas[s].keyword] = {s, data_num - 1};
+        end = std::chrono::high_resolution_clock::now();
+        auto index_duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+        std::cout << "构建索引所花费的时间：" << index_duration << " 毫秒" << "\n";
+
+        // for(auto & it: indexs) {
+        //     std::cout << it.first << " = [" << it.second.first << "," <<  it.second.second << "]"
+        //         << "\n";
+        // }
         
         // 将服务地址注册到etcd中
-        // node 0 对外服务， node1 对内服务
         if(!registerOrFoundService()) {
             std::cout << "faild to register Or Found Service ...." << "\n";
             return -1;
@@ -163,41 +132,8 @@ public:
         csv_file.close();
         return 0;
     }
-
-    void sortData() {
-        auto start = std::chrono::high_resolution_clock::now();
-        std::sort(raw_datas, raw_datas + data_num, [] (const RawData & l, const RawData & r) {
-            return l.keyword < r.keyword;
-        });
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-        std::cout << "对数据进行排序所花费的时间：" << duration << " 毫秒" << "\n";
-
-        for(int64_t i = 0; i < data_num; i++)
-            std::cout << raw_datas[i] << "\n";
-    }
-
-    void buildIndex() {
-        auto start = std::chrono::high_resolution_clock::now();
-        indexs.reserve(key_word_num);
-        int64_t s = 0;
-        for(int64_t i = 1; i < data_num; i++) {
-            if(raw_datas[i].keyword != raw_datas[i-1].keyword) {
-                indexs[raw_datas[s].keyword] = {s, i-1};
-                s = i;
-            }
-        }
-        indexs[raw_datas[s].keyword] = {s, data_num - 1};
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-        std::cout << "构建索引所花费的时间：" << duration << " 毫秒" << "\n";
-
-        for(auto & it: indexs) {
-            std::cout << it.first << " = [" << it.second.first << "," <<  it.second.second << "]"
-                << "\n";
-        }
-    }
-
+    
+    // node 0 对外服务， node1 对内服务
     bool registerOrFoundService() {
         if(options_.node_id == 0) {
             //wait node1 
@@ -320,12 +256,8 @@ public:
         return std::move(search_results);
     }
 
-    Status InernalSearch(ServerContext *context, const Request *request,
-                    SearchResponse *response) override {
+    Status InernalSearch(ServerContext *context, const Request *request, SearchResponse *response) override {
         auto search_results = searchTopNByKeyword(request);
-        // std::cout << "InernalSearch" << std::endl;
-        // for(auto & data: search_results)
-        //     std::cout << data << std::endl;
         int n = search_results.size();
         response->mutable_adgroup_ids()->Reserve(n);
         response->mutable_prices()->Reserve(n);
@@ -340,19 +272,7 @@ public:
         return Status::OK;
     }
 
-    Status Search(ServerContext *context, const Request *request,
-                    Response *response) override {
-        
-        uint64_t topn = request->topn();
-        // local search
-        auto search_results1 = searchTopNByKeyword(request);
-        // std::cout << "node1: " << std::endl;
-        // for(auto & data: search_results1)
-        //     std::cout << data << std::endl;
-        auto search_results2 = ayncSearchClient->Search(request);
-        // std::cout << "node2: " << std::endl;
-        // for(auto & data: search_results2)
-        //     std::cout << data << std::endl;
+    std::vector<SearchResult> mergeResult(std::vector<SearchResult> & result1, std::vector<SearchResult> & result2) {
         auto cmp = [] (const SearchResult &lhs, const SearchResult rhs) {
             if(lhs.score > rhs.score) {
                 return true;
@@ -368,39 +288,56 @@ public:
         };
         std::vector<SearchResult> search_results;
         int i = 0, j = 0;
-        while(i < search_results1.size() || j < search_results2.size()) {
-            if(i < search_results1.size() && j < search_results2.size()) {
-                if(cmp(search_results1[i], search_results2[j])) {
-                    search_results.push_back(search_results1[i]);
+        while(i < result1.size() || j < result2.size()) {
+            if(i < result1.size() && j < result2.size()) {
+                if(cmp(result1[i], result2[j])) {
+                    search_results.push_back(result1[i]);
                     i++;
                 }else{
-                    search_results.push_back(search_results2[j]);
+                    search_results.push_back(result2[j]);
                     j++;
                 }
-            }else if(i < search_results1.size()) {
-                search_results.push_back(search_results1[i]);
+            }else if(i < result1.size()) {
+                search_results.push_back(result1[i]);
                 i++;
-            }else if(j < search_results2.size()){
-                search_results.push_back(search_results2[j]);
+            }else if(j < result2.size()){
+                search_results.push_back(result2[j]);
                 j++;
             }
         }
-        if(search_results.empty())
-            return Status::OK;
+        return search_results;
+    }
+
+    Status Search(ServerContext *context, const Request *request,
+                    Response *response) override {
+        
+        uint64_t topn = request->topn();
+        AyncSearchResult* searchResult = new AyncSearchResult();
+        ayncSearchClient->Search(request, searchResult);
+        // local search
+        auto search_results = searchTopNByKeyword(request);
+        // wait node1 relpy
+        searchResult->wait();
+        
+        auto final_results = mergeResult(search_results, searchResult->results);
+        // free AyncSearchResult
+        {
+            delete searchResult;
+        }
 
         // 4. prices
         // 计费价格（计费价格 = 第 i+1 名的排序分数 / 第 i 名的预估点击率（i表示排序名次，例如i=1代表排名第1的广告））
-        int n = search_results.size() <= topn ? search_results.size() : topn;
+        int n = final_results.size() <= topn ? final_results.size() : topn;
         for(int i = 0; i < n - 1; i++)
-            search_results[i].bill_price = std::round(search_results[i+1].score / search_results[i].ctr) ;
-        search_results[n-1].bill_price = search_results.size() <= topn ? 
-            search_results[n-1].price : std::round(search_results[n].score / search_results[n-1].ctr);
+            final_results[i].bill_price = std::round(final_results[i+1].score / final_results[i].ctr) ;
+        final_results[n-1].bill_price = final_results.size() <= topn ? 
+            final_results[n-1].price : std::round(final_results[n].score / final_results[n-1].ctr);
 
         // 5. fill result
-        n = search_results.size() <= topn ? search_results.size() : topn;
+        n = final_results.size() <= topn ? final_results.size() : topn;
         for(int i = 0; i < n; i++) {
-            response->add_adgroup_ids(search_results[i].adgroup_id);
-            response->add_prices(search_results[i].bill_price);
+            response->add_adgroup_ids(final_results[i].adgroup_id);
+            response->add_prices(final_results[i].bill_price);
             // std::cout << results[i].adgroup_id << "  " << results[i].bill_price << "\n";
         }
         return Status::OK;
@@ -410,9 +347,11 @@ private:
     Options options_;
     std::string server_address_;
     etcd::Client etcd_;
-
+    
+    //data
     RawData* raw_datas;
     int64_t data_num = 0;
+    // index
     using IndexResult = std::pair<int64_t, int64_t>;
     std::unordered_map<uint64_t, IndexResult> indexs;
 

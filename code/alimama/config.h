@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 
 // ETCD 
@@ -10,8 +11,8 @@ const std::string filename = "/data/raw_data.csv";
 // 568313896
 // |282686718|285627178
 // 190054042|189172001|189087853
-// constexpr size_t total_data_num = 300000000;
-constexpr size_t total_data_num = 10000000;
+constexpr size_t total_data_num = 300000000;
+// constexpr size_t total_data_num = 10000000;
 constexpr size_t key_word_num = 1e6;
 
 // 1000 0000 1s

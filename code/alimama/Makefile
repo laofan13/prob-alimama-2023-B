@@ -4,7 +4,7 @@ SYSTEM ?= $(HOST_SYSTEM)
 CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc`
 CXXFLAGS += -std=c++17
-CXXFLAGS += -O2 -g
+CXXFLAGS += -O3 -g
 
 LDFLAGS += -L/usr/local/lib \
 		   -letcd-cpp-api\
@@ -12,7 +12,7 @@ LDFLAGS += -L/usr/local/lib \
 		   -lboost_log\
 		   -lssl\
 		   -lcrypto\
-		   -O2 -g\
+		   -O3 -g\
            -pthread\
 		   `pkg-config --libs --static protobuf grpc++`\
            -ldl
@@ -26,9 +26,6 @@ vpath %.proto $(PROTOS_PATH)
 
 all: alimama_search_service
 
-greeter_client: helloworld.pb.o helloworld.grpc.pb.o greeter_client.o
-	$(CXX) $^ $(LDFLAGS) -o $@
-
 alimama_search_service: alimama.pb.o alimama.grpc.pb.o alimama_search_service.o
 	$(CXX) $^ $(LDFLAGS) -o $@
 
@@ -41,7 +38,7 @@ alimama_search_service: alimama.pb.o alimama.grpc.pb.o alimama_search_service.o
 	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
 clean:
-	rm -f *.o *.pb.cc *.pb.h alimama_search_service greeter_client
+	rm -f *.o *.pb.cc *.pb.h alimama_search_service
 
 
 # The following is to test your system and ensure a smoother experience.

@@ -1,3 +1,4 @@
+#pragma once
 #include <ostream>
 #include <string>
 #include <vector>
@@ -213,23 +214,22 @@ std::ostream& operator<<(std::ostream& os, SearchResult& result) {
     return os;
 }
 
+// struct SearchTask{
+//     std::vector<uint64_t> keywords;
+//     float context_vector1;
+//     float context_vector2;
+//     uint64_t hour;
+//     uint64_t topn;
 
-struct SearchTask{
-    std::vector<uint64_t> keywords;
-    float context_vector1;
-    float context_vector2;
-    uint64_t hour;
-    uint64_t topn;
+//     SearchTask(float v1, float v2, uint64_t h, uint64_t n):
+//         context_vector1(v1),
+//         context_vector2(v2),
+//         hour(h),
+//         topn(n)
+//     {
 
-    SearchTask(float v1, float v2, uint64_t h, uint64_t n):
-        context_vector1(v1),
-        context_vector2(v2),
-        hour(h),
-        topn(n)
-    {
-
-    }
-};
+//     }
+// };
 
 struct AyncSearchResult {
     bool finish;
@@ -240,11 +240,11 @@ struct AyncSearchResult {
     std::vector<SearchResult> results;
 
     AyncSearchResult():
-         finish(true),
-         faild(true),
+         finish(false),
+         faild(false),
          results(0)
     {
-        
+
     }
 
     void wait() {
@@ -260,7 +260,7 @@ struct AyncSearchResult {
         }
     };
 
-    void complete() {
+    void Finish() {
         {
             std::unique_lock<std::mutex> lock(mu);
             finish = true;
@@ -268,7 +268,7 @@ struct AyncSearchResult {
         cv.notify_one();
     }
 
-    void cancel() {
+    void Cancel() {
         {
             std::unique_lock<std::mutex> lock(mu);
             faild = true;
