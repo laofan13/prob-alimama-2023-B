@@ -95,7 +95,12 @@ private:
         }
         searchResult->results.reserve(response->adgroup_ids_size());
         for (int i = 0; i < response->adgroup_ids_size(); i++) {
-            searchResult->results.emplace_back(response->adgroup_ids(i), response->prices(i), response->ctrs(i), response->scores(i));
+            searchResult->results.emplace_back(
+                response->adgroup_ids(i), 
+                response->prices(i), 
+                response->ctrs(i), 
+                response->scores(i)
+            );
             // std::cout << "HandleResponse: " << searchResult->results[i] << std::endl;
         }
         searchResult->Finish();

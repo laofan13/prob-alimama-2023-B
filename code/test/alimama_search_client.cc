@@ -104,21 +104,12 @@ int main(int argc, char** argv) {
     }
 
     {
-        std::vector<uint64_t> keywords = {4803367238};
-        std::vector<float> context_vector = {0.552321f, 0.833632f};
-        uint64_t hour = 20;
-        uint64_t topn = 3;
-        client.Search(keywords, context_vector, hour, topn);
-    }
-
-    // 4803367238	0.552321,0.833632	20	1	722542970812	17934
-    {
         std::vector<uint64_t> keywords = {4803367238, 4803367239};
         std::vector<float> context_vector = {0.552321f, 0.833632f};
         uint64_t hour = 20;
-        uint64_t topn = 1;
+        uint64_t topn = 2;
         client.Search(keywords, context_vector, hour, topn);
     }
- 
+
   return 0;
 }

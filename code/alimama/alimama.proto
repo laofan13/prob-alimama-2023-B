@@ -29,7 +29,7 @@ message SearchResponse {
   // 广告单元id
   repeated uint64 adgroup_ids = 1;
 
-  // 广告单元对应的计费价格(单位为分)
+  // 广告单元对应的出价
   repeated uint64 prices = 2;
 
   // 广告单元对应的预估点击率
