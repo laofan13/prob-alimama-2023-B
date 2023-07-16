@@ -221,7 +221,7 @@ public:
                 if(deduplication_maps.find(data.adgroup_id) != deduplication_maps.end()) {
                     auto &result = search_results[deduplication_maps[data.adgroup_id]];
                     // 排序分数相等, 误差1e-6
-                    if(std::abs(score - result.score) <= 1e-6) {
+                    if(std::abs(score - result.score) <= epsilon) {
                         if(data.price < result.price) { 
                             result.price = data.price;
                             result.score = score;
@@ -274,7 +274,7 @@ public:
             if(deduplication_maps.find(data.adgroup_id) != deduplication_maps.end()) {
                 auto &result = result1[deduplication_maps[data.adgroup_id]];
                 // 排序分数相等, 误差1e-6
-                if(std::abs(data.score - result.score) <= 1e-6) {
+                if(std::abs(data.score - result.score) <= epsilon) {
                     if(data.price < result.price) { 
                         result.price = data.price;
                         result.score = data.score;
@@ -295,7 +295,7 @@ public:
 
         // 2.分数越高，排序越靠前
         std::sort(result1.begin(), result1.end(), [](const SearchResult &lhs, const SearchResult rhs) {
-            if(std::abs(lhs.score - rhs.score) <= 1e-6) {
+            if(std::abs(lhs.score - rhs.score) <= epsilon) {
                 return lhs.price == rhs.price ? lhs.adgroup_id > rhs.adgroup_id : lhs.price < rhs.price;
             }
             return lhs.score > rhs.score;

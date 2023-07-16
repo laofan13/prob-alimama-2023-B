@@ -8,5 +8,6 @@ const std::string modelservice_node1 = "/services/node1";
 const std::string filename = "/data/raw_data.csv";
 // const std::string filename = "/data/data.csv";
 
+constexpr float epsilon = 1e-6;
 constexpr size_t total_data_num = 300000000;
 constexpr size_t key_word_num = 1e6;
