@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./alimama/alimama_search_service > log
+./alimama/alimama_search_service > txt.log

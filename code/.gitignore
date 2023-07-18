@@ -1,3 +1,4 @@
 src
 /alimama/alimama_search_service
 /test/alimama_search_client
+*.log

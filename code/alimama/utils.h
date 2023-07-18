@@ -248,14 +248,14 @@ bool parserRawData(Options option, std::string & line, RawData &data) {
 #pragma pack(8)
 struct SearchResult {
     uint64_t adgroup_id;
-    uint16_t price;
+    uint32_t price;
     float ctr;
     float score;
     uint64_t bill_price = 0;
 
     SearchResult() {}
-    SearchResult(uint64_t id, uint16_t p): adgroup_id(id), price(p) {}
-    SearchResult(uint64_t id, uint16_t p, float e, float s): 
+    SearchResult(uint64_t id, uint32_t p): adgroup_id(id), price(p) {}
+    SearchResult(uint64_t id, uint32_t p, float e, float s): 
         adgroup_id(id), price(p), ctr(e), score(s)  {}
 };
 

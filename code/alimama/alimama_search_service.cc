@@ -25,14 +25,11 @@
 
 using grpc::Server;
 using grpc::ServerBuilder;
-using grpc::ServerCompletionQueue;
 using grpc::ServerContext;
 using grpc::Status;
-using grpc::Channel;
 
 using alimama::proto::Request;
 using alimama::proto::Response;
-using alimama::proto::SearchResponse;
 using alimama::proto::SearchService;
 
 #include "alimama.pb.h"
@@ -205,24 +202,49 @@ public:
         // 若排序过程中排序分数相同，选择出价低者，出价相同，adgroup_id大的排前面。
         std::sort(search_results.begin(), search_results.end(), order_cmp);
 
-        // 去重
+        // 3.去重，以确保同一个广告不会被多次展示给用户。
+        // 排序过程遇到adgroup_id重复，则优先选择排序分数高者，如若同时排序分数相等则取出价低者；
+        std::vector<SearchResult> results;
+        std::unordered_map<uint64_t, int> deduplication_maps;
+        for(int i = 0; i < search_results.size(); i++) {
+            auto & data = search_results[i];
+
+            if(deduplication_maps.find(data.adgroup_id) != deduplication_maps.end()) {
+                int idx = deduplication_maps[data.adgroup_id];
+                auto & target = results[idx];
+                // 排序分数相等, 误差1e-6
+                if(std::abs(data.score - target.score) <= epsilon) {
+                    if(data.price < target.price) {
+                        results[idx].price = data.price;
+                        results[idx].ctr = data.ctr;
+                        results[idx].score = data.score;
+                    }
+                }else if(data.score > target.score) {
+                    results[idx].price = data.price;
+                    results[idx].ctr = data.ctr;
+                    results[idx].score = data.score;
+                }
+            }else{
+                results.emplace_back(data.adgroup_id, data.price, data.ctr, data.score);
+                deduplication_maps[data.adgroup_id] = results.size() - 1;
+            }   
+        }
         
 
         // 4. prices
         // 计费价格（计费价格 = 第 i+1 名的排序分数 / 第 i 名的预估点击率（i表示排序名次，例如i=1代表排名第1的广告））
-        int n = search_results.size();
+        int n = results.size();
         for(int i = 0; i < n - 1; i++) {
-            search_results[i].bill_price = std::round(search_results[i+1].score / search_results[i].ctr);
+            results[i].bill_price = std::round(results[i+1].score / results[i].ctr);
         }
-        search_results[n - 1].bill_price = search_results[n - 1].price;
+        results[n - 1].bill_price = results[n - 1].price;
 
-        return std::move(search_results);
+        return std::move(results);
     }
 
 
     Status Search(ServerContext *context, const Request *request,
                     Response *response) override {
-        
         uint64_t topn = request->topn();
         auto final_results = recall(request);
 
@@ -230,7 +252,6 @@ public:
         // for(auto & data: final_results)
         //     std::cout << data << "\n";
         // std::cout << std::endl;
-
         int n = final_results.size() <= topn ? final_results.size() : topn;
         response->mutable_adgroup_ids()->Reserve(n);
         response->mutable_prices()->Reserve(n);
