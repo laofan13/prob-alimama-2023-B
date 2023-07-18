@@ -25,22 +25,6 @@ message Response {
   repeated uint64 prices = 2;
 }
 
-message SearchResponse {
-  // 广告单元id
-  repeated uint64 adgroup_ids = 1;
-
-  // 广告单元对应的出价
-  repeated uint64 prices = 2;
-
-  // 广告单元对应的预估点击率
-  repeated float ctrs = 3;
-
-  // 广告单元对应的排序分数
-  repeated float scores = 4;
-}
-
-
 service SearchService {
   rpc Search(Request) returns (Response) {}
-  rpc InernalSearch(Request) returns (SearchResponse) {}
 }
