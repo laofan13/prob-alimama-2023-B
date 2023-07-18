@@ -78,13 +78,13 @@ int main(int argc, char** argv) {
         client.Search(keywords, context_vector, hour, topn);
     }
 
-    {
-        std::vector<uint64_t> keywords = {4803367239};
-        std::vector<float> context_vector = {0.552321f, 0.833632f};
-        uint64_t hour = 20;
-        uint64_t topn = 1;
-        client.Search(keywords, context_vector, hour, topn);
-    }
+    // {
+    //     std::vector<uint64_t> keywords = {4803367239};
+    //     std::vector<float> context_vector = {0.552321f, 0.833632f};
+    //     uint64_t hour = 20;
+    //     uint64_t topn = 1;
+    //     client.Search(keywords, context_vector, hour, topn);
+    // }
     
     //12210106372	0.975501,0.219997	16	3	1804714034430	41953
     {
@@ -95,30 +95,30 @@ int main(int argc, char** argv) {
         client.Search(keywords, context_vector, hour, topn);
     }
 
-    {
-        std::vector<uint64_t> keywords = {12210106373};
-        std::vector<float> context_vector = {0.975501f, 0.219997f};
-        uint64_t hour = 16;
-        uint64_t topn = 1;
-        client.Search(keywords, context_vector, hour, topn);
-    }
+    // {
+    //     std::vector<uint64_t> keywords = {12210106373};
+    //     std::vector<float> context_vector = {0.975501f, 0.219997f};
+    //     uint64_t hour = 16;
+    //     uint64_t topn = 1;
+    //     client.Search(keywords, context_vector, hour, topn);
+    // }
 
-    {
-        std::vector<uint64_t> keywords = {4803367238, 4803367239};
-        std::vector<float> context_vector = {0.552321f, 0.833632f};
-        uint64_t hour = 20;
-        uint64_t topn = 2;
-        client.Search(keywords, context_vector, hour, topn);
-    }
+    // {
+    //     std::vector<uint64_t> keywords = {4803367238, 4803367239};
+    //     std::vector<float> context_vector = {0.552321f, 0.833632f};
+    //     uint64_t hour = 20;
+    //     uint64_t topn = 2;
+    //     client.Search(keywords, context_vector, hour, topn);
+    // }
 
-    // 2916200016 0.421320,0.552321 16 4 644960096149,1710671559561,1746215892460,1371046260120 62863,42444,27677,27489
-    {
-        std::vector<uint64_t> keywords = {2916200016};
-        std::vector<float> context_vector = {0.421320,0.552321};
-        uint64_t hour = 16;
-        uint64_t topn = 4;
-        client.Search(keywords, context_vector, hour, topn);
-    }
+    // // 2916200016 0.421320,0.552321 16 4 644960096149,1710671559561,1746215892460,1371046260120 62863,42444,27677,27489
+    // {
+    //     std::vector<uint64_t> keywords = {2916200016};
+    //     std::vector<float> context_vector = {0.421320,0.552321};
+    //     uint64_t hour = 16;
+    //     uint64_t topn = 4;
+    //     client.Search(keywords, context_vector, hour, topn);
+    // }
 
   return 0;
 }

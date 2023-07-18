@@ -88,6 +88,7 @@ Options loadENV() {
 
 //byte size = 8 + 8 + 8 + 8
 #pragma pack(8)
+
 struct RawData {
     uint64_t keyword;
     uint64_t adgroup_id;
@@ -107,6 +108,102 @@ std::ostream& operator<<(std::ostream& os, RawData& data) {
     return os;
 }
 
+// #pragma pack(8)
+// struct KeyWrodUnit {
+//     uint64_t key_word;
+//     float item_vec1;
+//     float item_vec2;
+//     uint32_t price;
+//     uint32_t adgroup_id_idx;
+
+//     KeyWrodUnit() {}
+
+//     KeyWrodUnit(uint64_t key, float vec1, float vec2 , uint32_t p, uint32_t idx):
+//         key_word(key),
+//         item_vec1(vec1),
+//         item_vec2(vec2),
+//         price(p),
+//         adgroup_id_idx(idx)
+        
+//     {
+
+//     }
+// };
+
+// std::ostream& operator<<(std::ostream& os, KeyWrodUnit& data) {
+//     os << "keyword: " << data.key_word << " | "
+//         << "price: " << data.price << " | "
+//         << "vector: ["<< data.item_vec1 << ", "<< data.item_vec2 << "]" << " | "
+//         << "adgroup_id_idx: " << data.adgroup_id_idx ;
+//     return os;
+// }
+
+// #pragma pack(8)
+// struct AdgroupUnit {
+//     uint64_t adgroup_id; 
+//     uint32_t timings_mask;
+
+
+//     AdgroupUnit() {}
+
+//     AdgroupUnit(uint64_t aid, float vec1, float vec2, uint32_t timings_mask):
+//         adgroup_id(aid),
+//         timings_mask(timings_mask)
+//     {
+
+//     }
+// };
+
+#pragma pack(8)
+struct KeyWrodUnit {
+    uint64_t key_word;
+    uint32_t adgroup_id_idx;
+    uint32_t price;
+
+    KeyWrodUnit() {}
+
+    KeyWrodUnit(uint64_t key, uint32_t idx, uint32_t p):
+        key_word(key),
+        adgroup_id_idx(idx),
+        price(p)
+    {
+
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, KeyWrodUnit& data) {
+    os << "keyword: " << data.key_word << " | "
+        << "price: " << data.price << " | "
+        << "adgroup_id_idx: " << data.adgroup_id_idx ;
+    return os;
+}
+
+#pragma pack(8)
+struct AdgroupUnit {
+    uint64_t adgroup_id; 
+    float item_vec1, item_vec2;
+    uint32_t timings_mask;
+
+
+    AdgroupUnit() {}
+
+    AdgroupUnit(uint64_t aid, float vec1, float vec2, uint32_t timings_mask):
+        adgroup_id(aid),
+        item_vec1(vec1),
+        item_vec2(vec2),
+        timings_mask(timings_mask)
+    {
+
+    }
+};
+
+std::ostream& operator<<(std::ostream& os, AdgroupUnit& data) {
+    os << "adgroup_id: " << data.adgroup_id << " | "
+        << "vector: ["<< data.item_vec1 << ", "<< data.item_vec2 << "]" << " | "
+        << "timings_mask: " << std::hex << data.timings_mask << std::dec;
+    return os;
+}
+
 bool parserRawData(Options option, std::string & line, RawData &data) {
     int i = 0;
     int n = line.size();
@@ -118,9 +215,6 @@ bool parserRawData(Options option, std::string & line, RawData &data) {
     }
     while(i < n && line[i] == '\t')
         i++; 
-
-    if(data.keyword % option.node_num != option.node_id)
-        return false;
 
     // adgroup_id
     data.adgroup_id = 0;
@@ -225,66 +319,3 @@ bool order_cmp(const SearchResult &lhs, const SearchResult rhs) {
     }
     return lhs.score > rhs.score;
 }
-
-// struct SearchTask{
-//     std::vector<uint64_t> keywords;
-//     float context_vector1;
-//     float context_vector2;
-//     uint64_t hour;
-//     uint64_t topn;
-
-//     SearchTask(float v1, float v2, uint64_t h, uint64_t n):
-//         context_vector1(v1),
-//         context_vector2(v2),
-//         hour(h),
-//         topn(n)
-//     {
-
-//     }
-// };
-
-struct AyncSearchResult {
-    bool finish;
-    bool faild;
-    std::mutex mu;
-    std::condition_variable cv;
-
-    std::vector<SearchResult> results;
-
-    AyncSearchResult():
-         finish(false),
-         faild(false),
-         results(0)
-    {
-
-    }
-
-    void wait() {
-        while(1) {
-            if( finish || faild)
-                break;
-            std::unique_lock<std::mutex> lock(mu);
-            cv.wait(lock, [this] { 
-                return finish || faild; 
-            });
-            if( finish || faild)
-                break;
-        }
-    };
-
-    void Finish() {
-        {
-            std::unique_lock<std::mutex> lock(mu);
-            finish = true;
-        }
-        cv.notify_one();
-    }
-
-    void Cancel() {
-        {
-            std::unique_lock<std::mutex> lock(mu);
-            faild = true;
-        }
-        cv.notify_one();
-    }
-};
