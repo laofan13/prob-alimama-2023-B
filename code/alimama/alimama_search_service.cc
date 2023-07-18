@@ -72,11 +72,12 @@ public:
         std::cout << "加载文件所花费的时间：" << load_duration << " 毫秒" << "\n";
         std::cout << "文件行数：" << keyword_num << "\n";
 
-        // // 广告数据
+        // 广告数据
         // std::cout << "广告单元：" << "\n";
         // for(int i = 0; i < adgroupID_num; i++) {
         //     std::cout << i << " | " << adgroupID_datas[i] << "\n";
         // }
+
         // 排序
         start = std::chrono::high_resolution_clock::now();
         std::sort(keyword_datas, keyword_datas + keyword_num, [] (const KeyWrodUnit & l, const KeyWrodUnit & r) {
@@ -86,7 +87,7 @@ public:
         auto sort_duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
         std::cout << "对数据进行排序所花费的时间：" << sort_duration << " 毫秒" << "\n";
 
-        // 关键词数据
+        // // 关键词数据
         // for(int64_t i = 0; i < keyword_num; i++)
         //     std::cout << keyword_datas[i] << "\n";
             
@@ -113,10 +114,10 @@ public:
         // }
         
         // 将服务地址注册到etcd中
-        std::string statistics = "|" +std::to_string(keyword_num) + 
-                    "|" + std::to_string(adgroupID_num);
-                    "|" + std::to_string(keyword_indexs.size());
-        auto response = etcd_.set(modelservice_key, server_address_ + statistics).get();
+        // std::string statistics = "|" +std::to_string(keyword_num) + 
+                    // "|" + std::to_string(adgroupID_num) + "|" + std::to_string(keyword_indexs.size());
+        // |556852106|4899159|1101000
+        auto response = etcd_.set(modelservice_key, server_address_).get();
         if (response.is_ok()) {
             std::cout << "Service registration successful.\n";
         } else {
@@ -149,14 +150,14 @@ public:
 
             uint32_t adgroup_id_idx = 0;
             if(adgroupID_map_indexs.find(data.adgroup_id) == adgroupID_map_indexs.end()) {
-                adgroupID_datas[adgroupID_num] = AdgroupUnit(data.adgroup_id, data.item_vec1, data.item_vec2, data.timings_mask);
+                adgroupID_datas[adgroupID_num] = AdgroupUnit(data.adgroup_id, data.timings_mask);
                 adgroupID_map_indexs[data.adgroup_id] = adgroupID_num;
                 adgroup_id_idx = adgroupID_num++;
             }else{
                 adgroup_id_idx = adgroupID_map_indexs[data.adgroup_id];
             }
 
-            keyword_datas[keyword_num] = KeyWrodUnit(data.keyword, adgroup_id_idx ,data.price);
+            keyword_datas[keyword_num] = KeyWrodUnit(data.keyword, data.item_vec1, data.item_vec2, data.price, adgroup_id_idx );
             keyword_num++;
         }
         // 关闭文件
@@ -175,9 +176,6 @@ public:
         for(int i = 0; i < request->keywords_size(); i++) {
             // Recall
             auto keyword = request->keywords(i);
-            // std::cout << "keyword=" << keyword << std::endl;
-            if(keyword % options_.node_num != options_.node_id)
-                continue;
             if(keyword_indexs.find(keyword) == keyword_indexs.end()) 
                 continue;
             auto matchResult = keyword_indexs[keyword];
@@ -190,8 +188,8 @@ public:
                 if(!(Adgroup_data.timings_mask & (1 << hour))) 
                     continue;
 
-                float up = Adgroup_data.item_vec1 * context_vec1 + Adgroup_data.item_vec2 * context_vec2;
-                float down = sqrt(Adgroup_data.item_vec1 * Adgroup_data.item_vec1 + Adgroup_data.item_vec2 * Adgroup_data.item_vec2) * context_dist;
+                float up = key_word_data.item_vec1 * context_vec1 + key_word_data.item_vec2 * context_vec2;
+                float down = sqrt(key_word_data.item_vec1 * key_word_data.item_vec1 + key_word_data.item_vec2 * key_word_data.item_vec2) * context_dist;
                 // 预估点击率 = 商品向量 和 用户_关键词向量 的余弦距离
                 float ctr = up / down + 0.000001f;
                 // 排序分数 = 预估点击率 x 出价（分数越高，排序越靠前）
@@ -208,6 +206,7 @@ public:
         std::sort(search_results.begin(), search_results.end(), order_cmp);
 
         // 去重
+        
 
         // 4. prices
         // 计费价格（计费价格 = 第 i+1 名的排序分数 / 第 i 名的预估点击率（i表示排序名次，例如i=1代表排名第1的广告））
@@ -230,6 +229,7 @@ public:
         // std::cout << "final_results: " << "\n";
         // for(auto & data: final_results)
         //     std::cout << data << "\n";
+        // std::cout << std::endl;
 
         int n = final_results.size() <= topn ? final_results.size() : topn;
         response->mutable_adgroup_ids()->Reserve(n);

@@ -108,64 +108,23 @@ std::ostream& operator<<(std::ostream& os, RawData& data) {
     return os;
 }
 
-// #pragma pack(8)
-// struct KeyWrodUnit {
-//     uint64_t key_word;
-//     float item_vec1;
-//     float item_vec2;
-//     uint32_t price;
-//     uint32_t adgroup_id_idx;
-
-//     KeyWrodUnit() {}
-
-//     KeyWrodUnit(uint64_t key, float vec1, float vec2 , uint32_t p, uint32_t idx):
-//         key_word(key),
-//         item_vec1(vec1),
-//         item_vec2(vec2),
-//         price(p),
-//         adgroup_id_idx(idx)
-        
-//     {
-
-//     }
-// };
-
-// std::ostream& operator<<(std::ostream& os, KeyWrodUnit& data) {
-//     os << "keyword: " << data.key_word << " | "
-//         << "price: " << data.price << " | "
-//         << "vector: ["<< data.item_vec1 << ", "<< data.item_vec2 << "]" << " | "
-//         << "adgroup_id_idx: " << data.adgroup_id_idx ;
-//     return os;
-// }
-
-// #pragma pack(8)
-// struct AdgroupUnit {
-//     uint64_t adgroup_id; 
-//     uint32_t timings_mask;
-
-
-//     AdgroupUnit() {}
-
-//     AdgroupUnit(uint64_t aid, float vec1, float vec2, uint32_t timings_mask):
-//         adgroup_id(aid),
-//         timings_mask(timings_mask)
-//     {
-
-//     }
-// };
-
 #pragma pack(8)
 struct KeyWrodUnit {
     uint64_t key_word;
-    uint32_t adgroup_id_idx;
+    float item_vec1;
+    float item_vec2;
     uint32_t price;
+    uint32_t adgroup_id_idx;
 
     KeyWrodUnit() {}
 
-    KeyWrodUnit(uint64_t key, uint32_t idx, uint32_t p):
+    KeyWrodUnit(uint64_t key, float vec1, float vec2 , uint32_t p, uint32_t idx):
         key_word(key),
-        adgroup_id_idx(idx),
-        price(p)
+        item_vec1(vec1),
+        item_vec2(vec2),
+        price(p),
+        adgroup_id_idx(idx)
+        
     {
 
     }
@@ -174,6 +133,7 @@ struct KeyWrodUnit {
 std::ostream& operator<<(std::ostream& os, KeyWrodUnit& data) {
     os << "keyword: " << data.key_word << " | "
         << "price: " << data.price << " | "
+        << "vector: ["<< data.item_vec1 << ", "<< data.item_vec2 << "]" << " | "
         << "adgroup_id_idx: " << data.adgroup_id_idx ;
     return os;
 }
@@ -181,16 +141,13 @@ std::ostream& operator<<(std::ostream& os, KeyWrodUnit& data) {
 #pragma pack(8)
 struct AdgroupUnit {
     uint64_t adgroup_id; 
-    float item_vec1, item_vec2;
     uint32_t timings_mask;
 
 
     AdgroupUnit() {}
 
-    AdgroupUnit(uint64_t aid, float vec1, float vec2, uint32_t timings_mask):
+    AdgroupUnit(uint64_t aid, uint32_t timings_mask):
         adgroup_id(aid),
-        item_vec1(vec1),
-        item_vec2(vec2),
         timings_mask(timings_mask)
     {
 
@@ -199,7 +156,6 @@ struct AdgroupUnit {
 
 std::ostream& operator<<(std::ostream& os, AdgroupUnit& data) {
     os << "adgroup_id: " << data.adgroup_id << " | "
-        << "vector: ["<< data.item_vec1 << ", "<< data.item_vec2 << "]" << " | "
         << "timings_mask: " << std::hex << data.timings_mask << std::dec;
     return os;
 }
