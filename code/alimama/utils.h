@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -6,6 +7,8 @@
 #include <mutex>
 #include <list>
 #include <condition_variable>
+
+#include <iomanip>
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -86,10 +89,10 @@ Options loadENV() {
 //byte size = 8 + 8 + 8 + 8
 #pragma pack(8)
 struct RawData {
-    int64_t keyword;
+    uint64_t keyword;
     uint64_t adgroup_id;
     uint16_t price;
-    int32_t timings_mask;
+    uint32_t timings_mask;
     float item_vec1, item_vec2;
     // uint64_t campaign_id;
     // uint64_t item_id;
@@ -209,10 +212,18 @@ struct SearchResult {
 std::ostream& operator<<(std::ostream& os, SearchResult& result) {
     os << "adgroup_id: " << result.adgroup_id << " | "
         << "price: " << result.price << " | "
-        << "ctr: " << result.ctr << " | "
-        << "score: " << result.score << " | "
+        << "ctr: " << std::setprecision(6)<< result.ctr << " | "
+        << "score: " << std::setprecision(15)<< result.score << " | "
         << "bill_price: " << result.bill_price;
     return os;
+}
+
+
+bool order_cmp(const SearchResult &lhs, const SearchResult rhs) {
+    if(std::abs(lhs.score - rhs.score) <= epsilon) {
+        return lhs.price == rhs.price ? lhs.adgroup_id > rhs.adgroup_id : lhs.price < rhs.price;
+    }
+    return lhs.score > rhs.score;
 }
 
 // struct SearchTask{

@@ -111,5 +111,14 @@ int main(int argc, char** argv) {
         client.Search(keywords, context_vector, hour, topn);
     }
 
+    // 2916200016 0.421320,0.552321 16 4 644960096149,1710671559561,1746215892460,1371046260120 62863,42444,27677,27489
+    {
+        std::vector<uint64_t> keywords = {2916200016};
+        std::vector<float> context_vector = {0.421320,0.552321};
+        uint64_t hour = 16;
+        uint64_t topn = 4;
+        client.Search(keywords, context_vector, hour, topn);
+    }
+
   return 0;
 }
