@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <ostream>
-#include <sstream>
+#include <map>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -147,7 +147,7 @@ public:
 
             uint32_t adgroup_id_idx = 0;
             if(adgroupID_map_indexs.find(data.adgroup_id) == adgroupID_map_indexs.end()) {
-                adgroupID_datas[adgroupID_num] = AdgroupUnit(data.adgroup_id, data.timings_mask);
+                adgroupID_datas[adgroupID_num] = AdgroupUnit(data.adgroup_id, data.item_id ,data.timings_mask);
                 adgroupID_map_indexs[data.adgroup_id] = adgroupID_num;
                 adgroup_id_idx = adgroupID_num++;
             }else{
@@ -188,48 +188,55 @@ public:
                 float up = key_word_data.item_vec1 * context_vec1 + key_word_data.item_vec2 * context_vec2;
                 float down = sqrt(key_word_data.item_vec1 * key_word_data.item_vec1 + key_word_data.item_vec2 * key_word_data.item_vec2) * context_dist;
                 // 预估点击率 = 商品向量 和 用户_关键词向量 的余弦距离
-                float ctr = up / down + 0.000001f;
+                float ctr = (up / down) + 0.000001f;
                 // 排序分数 = 预估点击率 x 出价（分数越高，排序越靠前）
-                float score = ctr * key_word_data.price;
+                float score = key_word_data.price * ctr;
 
-                search_results.emplace_back(Adgroup_data.adgroup_id, key_word_data.price, ctr, score);
+                search_results.emplace_back(Adgroup_data.adgroup_id,  Adgroup_data.item_id, key_word_data.price, ctr, score);
             }
         }
         if(search_results.empty())
             return {};
 
-        // 2.分数越高，排序越靠前
-        // 若排序过程中排序分数相同，选择出价低者，出价相同，adgroup_id大的排前面。
-        std::sort(search_results.begin(), search_results.end(), order_cmp);
-
-        // 3.去重，以确保同一个广告不会被多次展示给用户。
+        // 3.去重，以确保同一个广告不会被多次展示给用户。以及同一个物品展示多次
         // 排序过程遇到adgroup_id重复，则优先选择排序分数高者，如若同时排序分数相等则取出价低者；
         std::vector<SearchResult> results;
-        std::unordered_map<uint64_t, int> deduplication_maps;
+        std::map<uint64_t, int> deduplication_adgroup_id_maps;
+        std::map<uint64_t, int> deduplication_item_id_maps;
         for(int i = 0; i < search_results.size(); i++) {
             auto & data = search_results[i];
 
-            if(deduplication_maps.find(data.adgroup_id) != deduplication_maps.end()) {
-                int idx = deduplication_maps[data.adgroup_id];
+            if(deduplication_adgroup_id_maps.find(data.adgroup_id) != deduplication_adgroup_id_maps.end()) {
+                int idx = deduplication_adgroup_id_maps[data.adgroup_id];
                 auto & target = results[idx];
                 // 排序分数相等, 误差1e-6
                 if(std::abs(data.score - target.score) <= epsilon) {
                     if(data.price < target.price) {
-                        results[idx].price = data.price;
-                        results[idx].ctr = data.ctr;
-                        results[idx].score = data.score;
+                        results[idx]= data;
                     }
                 }else if(data.score > target.score) {
-                    results[idx].price = data.price;
-                    results[idx].ctr = data.ctr;
-                    results[idx].score = data.score;
+                    results[idx]= data;
+                }
+            }else if(deduplication_item_id_maps.find(data.item_id) != deduplication_item_id_maps.end()){
+                int idx = deduplication_item_id_maps[data.item_id];
+                auto & target = results[idx];
+                if(std::abs(data.score - target.score) <= epsilon) {
+                    if(data.price < target.price) {
+                        results[idx]= data;
+                    }
+                }else if(data.score > target.score) {
+                    results[idx]= data;
                 }
             }else{
-                results.emplace_back(data.adgroup_id, data.price, data.ctr, data.score);
-                deduplication_maps[data.adgroup_id] = results.size() - 1;
-            }   
+                results.push_back(data);
+                deduplication_adgroup_id_maps[data.adgroup_id] = results.size() - 1;
+                deduplication_item_id_maps[data.item_id] = results.size() - 1;
+            }
         }
-        
+
+        // 2.分数越高，排序越靠前
+        // 若排序过程中排序分数相同，选择出价低者，出价相同，adgroup_id大的排前面。
+        std::sort(results.begin(), results.end(), order_cmp);
 
         // 4. prices
         // 计费价格（计费价格 = 第 i+1 名的排序分数 / 第 i 名的预估点击率（i表示排序名次，例如i=1代表排名第1的广告））
