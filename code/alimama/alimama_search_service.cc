@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <ostream>
@@ -147,7 +148,7 @@ public:
 
             uint32_t adgroup_id_idx = 0;
             if(adgroupID_map_indexs.find(data.adgroup_id) == adgroupID_map_indexs.end()) {
-                adgroupID_datas[adgroupID_num] = AdgroupUnit(data.adgroup_id, data.item_id ,data.timings_mask);
+                adgroupID_datas[adgroupID_num] = AdgroupUnit(data.adgroup_id, data.timings_mask);
                 adgroupID_map_indexs[data.adgroup_id] = adgroupID_num;
                 adgroup_id_idx = adgroupID_num++;
             }else{
@@ -192,7 +193,7 @@ public:
                 // 排序分数 = 预估点击率 x 出价（分数越高，排序越靠前）
                 float score = key_word_data.price * ctr;
 
-                search_results.emplace_back(Adgroup_data.adgroup_id,  Adgroup_data.item_id, key_word_data.price, ctr, score);
+                search_results.emplace_back(Adgroup_data.adgroup_id, key_word_data.price, ctr, score);
             }
         }
         if(search_results.empty())
@@ -202,7 +203,6 @@ public:
         // 排序过程遇到adgroup_id重复，则优先选择排序分数高者，如若同时排序分数相等则取出价低者；
         std::vector<SearchResult> results;
         std::map<uint64_t, int> deduplication_adgroup_id_maps;
-        std::map<uint64_t, int> deduplication_item_id_maps;
         for(int i = 0; i < search_results.size(); i++) {
             auto & data = search_results[i];
 
@@ -217,20 +217,9 @@ public:
                 }else if(data.score > target.score) {
                     results[idx]= data;
                 }
-            }else if(deduplication_item_id_maps.find(data.item_id) != deduplication_item_id_maps.end()){
-                int idx = deduplication_item_id_maps[data.item_id];
-                auto & target = results[idx];
-                if(std::abs(data.score - target.score) <= epsilon) {
-                    if(data.price < target.price) {
-                        results[idx]= data;
-                    }
-                }else if(data.score > target.score) {
-                    results[idx]= data;
-                }
             }else{
                 results.push_back(data);
                 deduplication_adgroup_id_maps[data.adgroup_id] = results.size() - 1;
-                deduplication_item_id_maps[data.item_id] = results.size() - 1;
             }
         }
 

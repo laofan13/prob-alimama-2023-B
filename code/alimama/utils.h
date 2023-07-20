@@ -95,8 +95,8 @@ struct RawData {
     uint16_t price;
     uint32_t timings_mask;
     float item_vec1, item_vec2;
-    uint64_t campaign_id;
-    uint64_t item_id;
+    // uint64_t campaign_id;
+    // uint64_t item_id;
 };
 
 std::ostream& operator<<(std::ostream& os, RawData& data) {
@@ -141,15 +141,13 @@ std::ostream& operator<<(std::ostream& os, KeyWrodUnit& data) {
 #pragma pack(8)
 struct AdgroupUnit {
     uint64_t adgroup_id; 
-    uint64_t item_id;
     uint32_t timings_mask;
 
 
     AdgroupUnit() {}
 
-    AdgroupUnit(uint64_t aid, uint64_t item, uint32_t timings_mask):
+    AdgroupUnit(uint64_t aid, uint32_t timings_mask):
         adgroup_id(aid),
-        item_id(item),
         timings_mask(timings_mask)
     {
 
@@ -158,7 +156,6 @@ struct AdgroupUnit {
 
 std::ostream& operator<<(std::ostream& os, AdgroupUnit& data) {
     os << "adgroup_id: " << data.adgroup_id << " | "
-        << "item_id: " << data.item_id << " | "
         << "timings_mask: " << std::hex << data.timings_mask << std::dec;
     return os;
 }
@@ -245,32 +242,12 @@ bool parserRawData(Options option, std::string & line, RawData &data) {
         decimal *= 0.1f;
         ++i;
     }
-
-    // campaign_id
-    data.campaign_id = 0;
-    while(i < n && line[i] != '\t') {
-        data.campaign_id = data.campaign_id * 10 + (line[i] - '0');
-        i++;
-    }
-    while(i < n && line[i] == '\t')
-        i++;
-
-    // item_id
-    data.item_id = 0;
-    while(i < n && line[i] != '\t') {
-        data.item_id = data.item_id * 10 + (line[i] - '0');
-        i++;
-    }
-    while(i < n && line[i] == '\t')
-        i++;
-
     return true;
 };
 
 #pragma pack(8)
 struct SearchResult {
     uint64_t adgroup_id;
-    uint64_t item_id;
     uint32_t price;
     float ctr;
     float score;
@@ -278,13 +255,12 @@ struct SearchResult {
 
     SearchResult() {}
     SearchResult(uint64_t id, uint32_t p): adgroup_id(id), price(p) {}
-    SearchResult(uint64_t id, uint64_t item, uint32_t p, float e, float s): 
-        adgroup_id(id), item_id(item), price(p), ctr(e), score(s)  {}
+    SearchResult(uint64_t id, uint32_t p, float e, float s): 
+        adgroup_id(id), price(p), ctr(e), score(s)  {}
 };
 
 std::ostream& operator<<(std::ostream& os, SearchResult& result) {
     os << "adgroup_id: " << result.adgroup_id << " | "
-        << "item_id: " << result.item_id << " | "
         << "price: " << result.price << " | "
         << "ctr: " << std::setprecision(6)<< result.ctr << " | "
         << "score: " << std::setprecision(15)<< result.score << " | "
