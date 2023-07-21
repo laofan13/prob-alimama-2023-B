@@ -165,9 +165,9 @@ public:
     
     std::vector<SearchResult> recall(const Request *request) {
         uint64_t hour = request->hour();
-        float context_vec1 = request->context_vector(0);
-        float context_vec2 = request->context_vector(1);
-        float context_dist = sqrt(context_vec1 * context_vec1 + context_vec2 * context_vec2);
+        float ctx_vec1 = request->context_vector(0);
+        float ctx_vec2 = request->context_vector(1);
+        float ctx_norm = std::sqrt(ctx_vec1 * ctx_vec1 + ctx_vec2 * ctx_vec2);
 
         // 1. search match result
         std::vector<SearchResult> search_results;
@@ -186,10 +186,10 @@ public:
                 if(!(Adgroup_data.timings_mask & (1 << hour))) 
                     continue;
 
-                float up = key_word_data.item_vec1 * context_vec1 + key_word_data.item_vec2 * context_vec2;
-                float down = sqrt(key_word_data.item_vec1 * key_word_data.item_vec1 + key_word_data.item_vec2 * key_word_data.item_vec2) * context_dist;
+                float dotProduct = key_word_data.item_vec1 * ctx_vec1 + key_word_data.item_vec2 * ctx_vec2;
+                float norm = std::sqrt(key_word_data.item_vec1 * key_word_data.item_vec1 + key_word_data.item_vec2 * key_word_data.item_vec2);
                 // 预估点击率 = 商品向量 和 用户_关键词向量 的余弦距离
-                float ctr = (up / down) + 0.000001f;
+                float ctr = dotProduct / (norm * ctx_norm) + 0.000001f;
                 // 排序分数 = 预估点击率 x 出价（分数越高，排序越靠前）
                 float score = key_word_data.price * ctr;
 
